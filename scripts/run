@@ -12,5 +12,5 @@ LEX_OUTPUT="../out/lex.yy.c"
 BINARY_PROGRAM="../bin/prog"
 
 flex -o "$LEX_OUTPUT" "$LEX_FILE"
-gcc -o "$BINARY_PROGRAM" "$LEX_OUTPUT" -lfl
+gcc -o "$BINARY_PROGRAM" "$LEX_OUTPUT" -lfl -I"../src" -I"../out"
 "$BINARY_PROGRAM" "$FILE_NAME"

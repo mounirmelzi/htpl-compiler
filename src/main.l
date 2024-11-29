@@ -7,15 +7,22 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "tokens.h" 
+
+#include "tokens.h"
 
 %}
 
-/* Définition des macros */
+
+
+/* *** *** section des macros *** *** */
+
 DIGIT       [0-9]
-IDENT       [a-zA-Z][a-zA-Z0-9]*
+ID          [a-zA-Z][a-zA-Z0-9]*
+
+
 
 /* *** *** section des actions *** *** */
+
 %%
 
  /* Mots-clés */
@@ -28,7 +35,7 @@ IDENT       [a-zA-Z][a-zA-Z0-9]*
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); return FUNCTION_BEGIN; }
 "</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); return FUNCTION_END; }
 "main"              { printf("TOKEN: MAIN (ligne: %d)\n", yylineno); return MAIN; }
-_[0-9]*{IDENT}      { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno); return FUNCTION_NAME; }
+_[0-9]*{ID}         { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno); return FUNCTION_NAME; }
 
  /* Boucles et conditions */
 "<if"               { printf("TOKEN: IF_BEGIN (ligne: %d)\n", yylineno); return IF_BEGIN; }
@@ -57,7 +64,7 @@ _[0-9]*{IDENT}      { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
         if (yytext[i] == '\\' && (yytext[i + 1] == '"' || yytext[i + 1] == '\\')) {
             processed[j++] = yytext[++i]; 
         } else if (yytext[i] != '\\') {
-            processed[j++] = yytext[i]; 
+            processed[j++] = yytext[i];
         }
         i++;
     }
@@ -70,8 +77,8 @@ _[0-9]*{IDENT}      { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 '.'                 { printf("TOKEN: CHAR_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); return CHAR_LITERAL; }
 
  /* Tableaux */
-"["                 { printf("TOKEN: LBRACKET (ligne: %d)\n", yylineno); return LBRACKET; }
-"]"                 { printf("TOKEN: RBRACKET (ligne: %d)\n", yylineno); return RBRACKET; }
+"["                 { printf("TOKEN: LEFT_BRACKET (ligne: %d)\n", yylineno); return LEFT_BRACKET; }
+"]"                 { printf("TOKEN: RIGHT_BRACKET (ligne: %d)\n", yylineno); return RIGHT_BRACKET; }
 
  /* Enregistrements (Struct) */
 "<struct"           { printf("TOKEN: STRUCT_BEGIN (ligne: %d)\n", yylineno); return STRUCT_BEGIN; }
@@ -87,21 +94,21 @@ _[0-9]*{IDENT}      { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "=="                { printf("TOKEN: EQUAL (ligne: %d)\n", yylineno); return EQUAL; }
 "!="                { printf("TOKEN: NOT_EQUAL (ligne: %d)\n", yylineno); return NOT_EQUAL; }
 "<"                 { printf("TOKEN: LESS (ligne: %d)\n", yylineno); return LESS; }
-"<="                { printf("TOKEN: LESS_EQUAL (ligne: %d)\n", yylineno); return LESS_EQUAL; }
+"<="                { printf("TOKEN: LESS_OR_EQUAL (ligne: %d)\n", yylineno); return LESS_OR_EQUAL; }
 ">"                 { printf("TOKEN: GREATER (ligne: %d)\n", yylineno); return GREATER; }
-">="                { printf("TOKEN: GREATER_EQUAL (ligne: %d)\n", yylineno); return GREATER_EQUAL; }
+">="                { printf("TOKEN: GREATER_OR_EQUAL (ligne: %d)\n", yylineno); return GREATER_OR_EQUAL; }
 ":"                 { printf("TOKEN: COLON (ligne: %d)\n", yylineno); return COLON; }
-"and"               { printf("TOKEN: LOGICAL_AND (ligne: %d)\n", yylineno); return LOGICAL_AND; }
-"or"                { printf("TOKEN: LOGICAL_OR (ligne: %d)\n", yylineno); return LOGICAL_OR; }
+"and"               { printf("TOKEN: LOGICAL_AND (ligne: %d)\n", yylineno); return AND; }
+"or"                { printf("TOKEN: LOGICAL_OR (ligne: %d)\n", yylineno); return OR; }
 "not"               { printf("TOKEN: NOT (ligne: %d)\n", yylineno); return NOT; }
 
  /* Parenthèses */
-"("                 { printf("TOKEN: LPAREN (ligne: %d)\n", yylineno); return LPAREN; }
-")"                 { printf("TOKEN: RPAREN (ligne: %d)\n", yylineno); return RPAREN; }
+"("                 { printf("TOKEN: LEFT_PARENTHESIS (ligne: %d)\n", yylineno); return LEFT_PARENTHESIS; }
+")"                 { printf("TOKEN: RIGHT_PARENTHESIS (ligne: %d)\n", yylineno); return RIGHT_PARENTHESIS; }
 
  /* Symboles spéciaux */
-"{"                 { printf("TOKEN: LBRACE (ligne: %d)\n", yylineno); return LBRACE; }
-"}"                 { printf("TOKEN: RBRACE (ligne: %d)\n", yylineno); return RBRACE; }
+"{"                 { printf("TOKEN: LEFT_BRACE (ligne: %d)\n", yylineno); return LEFT_BRACE; }
+"}"                 { printf("TOKEN: RIGHT_BRACE (ligne: %d)\n", yylineno); return RIGHT_BRACE; }
 ";"                 { printf("TOKEN: SEMICOLON (ligne: %d)\n", yylineno); return SEMICOLON; }
 ","                 { printf("TOKEN: COMMA (ligne: %d)\n", yylineno); return COMMA; }
 "<HTPL>"            { printf("TOKEN: HTPL_BEGIN (ligne: %d)\n", yylineno); return HTPL_BEGIN; }
@@ -115,18 +122,19 @@ _[0-9]*{IDENT}      { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "#"[^\n]*           ; /* ignorer les commentaires */
 
  /* Identifiants */
-{IDENT}             { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); return IDENTIFIER; }
+{ID}                { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); return IDENTIFIER; }
 
  /* Gestion des erreurs */
 .                   { printf("Erreur lexicale : caractère inconnu '%s' à la ligne %d\n", yytext, yylineno); }
 
 %%
 
+
+
 /* *** *** section de code *** *** */
 
 int yywrap() {
 }
-
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -141,7 +149,11 @@ int main(int argc, char* argv[]) {
     }
 
     yyset_in(file);
-    yylex();
+
+    while (yylex() != 0) {
+    }
+
     fclose(file);
+    
     return 0;
 }
