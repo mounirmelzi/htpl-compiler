@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    yyin = file;
+    yyset_in(file);
     yylex();
     fclose(file);
     return 0;
