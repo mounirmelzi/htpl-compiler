@@ -1,0 +1,9 @@
+#!/bin/bash
+
+LEX_FILE="../src/main.l"
+LEX_OUTPUT="../out/lex.yy.c"
+BINARY_PROGRAM="../bin/prog"
+
+flex -o "$LEX_OUTPUT" "$LEX_FILE"
+gcc -o "$BINARY_PROGRAM" "$LEX_OUTPUT" -lfl
+"$BINARY_PROGRAM"

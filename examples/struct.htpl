@@ -1,0 +1,20 @@
+<HTPL>
+    <struct Student>
+        let name: string;
+        let age: int;
+    </struct>
+
+    <function main(): void>
+        let s1: Student = { name = "random name", age = 18 };
+        let s2: Student = {
+            name = "random name",
+            age = 18
+        };
+
+        s1.name = "not random name";
+        s2.age = 19;
+
+        read(s2.name);
+        write(s2.name);
+    </function>
+</HTPL>

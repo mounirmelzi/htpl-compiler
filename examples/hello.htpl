@@ -1,0 +1,5 @@
+<HTPL>
+    <function main(): void>
+        write("hello world");
+    </function>
+</HTPL>

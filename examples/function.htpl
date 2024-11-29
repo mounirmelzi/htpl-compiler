@@ -1,0 +1,13 @@
+<HTPL>
+    let x: int = 10;
+    let y: int = 5;
+
+    <function _add(a: int, b: int): int>
+        return a + b;
+    </function>
+
+    <function main(): void>
+        let z: int = _add(x, y);
+        write(z);
+    </function>
+</HTPL>
