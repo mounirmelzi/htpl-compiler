@@ -2,7 +2,11 @@
 
 %{
 
-int cpt = 0;
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 %}
 
@@ -12,9 +16,8 @@ int cpt = 0;
 
 %%
 
-\n {
-    printf("Hello World !\n");
-    return 0;
+. {
+    printf("%s", yytext);
 }
 
 %%
@@ -28,6 +31,19 @@ int yywrap() {
 
 
 int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        fprintf(stderr, "Error opening the file: %s\n", argv[1]);
+        return 1;
+    }
+
+    yyin = file;
     yylex();
+    fclose(file);
     return 0;
 }

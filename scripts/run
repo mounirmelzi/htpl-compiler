@@ -1,9 +1,16 @@
 #!/bin/bash
 
+if [ $# -eq 0 ]; then
+    FILE_NAME="../examples/default.htpl"
+    echo -e "No filename provided. Using default file: $FILE_NAME\n"
+else
+    FILE_NAME="$1"
+fi
+
 LEX_FILE="../src/main.l"
 LEX_OUTPUT="../out/lex.yy.c"
 BINARY_PROGRAM="../bin/prog"
 
 flex -o "$LEX_OUTPUT" "$LEX_FILE"
 gcc -o "$BINARY_PROGRAM" "$LEX_OUTPUT" -lfl
-"$BINARY_PROGRAM"
+"$BINARY_PROGRAM" "$FILE_NAME"
