@@ -84,12 +84,26 @@ _[0-9]*{ID} {
  /* traietement d'une chaine de caractere */
 \"([^\"\\]|\\["\\nt])*\" {
     // si un caractere special est precédé par un antislash, le caractere sera concidéré comme faisant partie de la chaine.
-    char processed[1024];
+    char processed[1024]; //contenu final de la chaine
     int i = 0, j = 0;
+
     while (yytext[i] != '\0') {
-        if (yytext[i] == '\\' && (yytext[i + 1] == '"' || yytext[i + 1] == '\\')) {
-            processed[j++] = yytext[++i]; 
-        } else if (yytext[i] != '\\') {
+        if (yytext[i] == '\\') {
+            i++;
+            switch (yytext[i]) {
+                case 'n':  processed[j++] = '\n'; break; // nouvelle ligne
+                case 'r':  processed[j++] = '\r'; break; // retour chariot
+                case 't':  processed[j++] = '\t'; break; // tabulation
+                case '\\': processed[j++] = '\\'; break; // antislash
+                case '"':  processed[j++] = '"';  break; // guillemets doubles
+                case '\'': processed[j++] = '\''; break; // apostrophe
+                default:
+                    // Si un caractère invalide suit un antislash.
+                    fprintf(stderr, "Warning: Unknown escape sequence '\\%c' at line %d\n", yytext[i], yylineno);
+                    processed[j++] = yytext[i];
+            } 
+        } else if (yytext[i] != '"') {
+            // ajouter les caracteres normaux, sauf les guillemets d'encadrement.
             processed[j++] = yytext[i];
         }
         i++;
@@ -164,7 +178,6 @@ _[0-9]*{ID} {
 .                   { printf("File \"%s\", line %d, character %d: Lexical Error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); column_counter += yyleng; return ERROR; }
 
 %%
-
 
 
 /* *** *** section de code *** *** */
