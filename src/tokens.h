@@ -2,6 +2,9 @@
 
 typedef enum Token
 {
+    ERROR = -1,
+    END_OF_FILE = 0,
+
     /* Mots-clés */
     LET = 1,
     RETURN,
