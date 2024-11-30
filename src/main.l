@@ -111,6 +111,7 @@ _[0-9]*{ID}         { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "}"                 { printf("TOKEN: RIGHT_BRACE (ligne: %d)\n", yylineno); return RIGHT_BRACE; }
 ";"                 { printf("TOKEN: SEMICOLON (ligne: %d)\n", yylineno); return SEMICOLON; }
 ","                 { printf("TOKEN: COMMA (ligne: %d)\n", yylineno); return COMMA; }
+\.                  { printf("TOKEN: DOT (ligne: %d)\n", yylineno); return DOT; }
 "<HTPL>"            { printf("TOKEN: HTPL_BEGIN (ligne: %d)\n", yylineno); return HTPL_BEGIN; }
 "</HTPL>"           { printf("TOKEN: HTPL_END (ligne: %d)\n", yylineno); return HTPL_END; }
 

@@ -1,6 +1,7 @@
 #pragma once
 
-typedef enum Token {
+typedef enum Token
+{
     /* Mots-clés */
     LET = 1,
     RETURN,
@@ -30,6 +31,7 @@ typedef enum Token {
     /* Enregistrements (Struct) */
     STRUCT_BEGIN,
     STRUCT_END,
+    DOT,
 
     /* Opérateurs */
     PLUS,
