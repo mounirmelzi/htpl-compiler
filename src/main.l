@@ -9,10 +9,13 @@
 #include <stdbool.h>
 
 #include "tokens.h"
+#include "symbols_table.h"
 
 
 char *filename; // the file to compile
 int column_counter = 1;  // custom column counter
+
+SymbolsTable symbolsTable; // global variable for the symbols table
 
 %}
 
@@ -38,8 +41,19 @@ ID          [a-zA-Z][a-zA-Z0-9]*
  /* Fonctions */
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return FUNCTION_BEGIN; }
 "</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return FUNCTION_END; }
-"main"              { printf("TOKEN: MAIN (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return MAIN; }
-_[0-9]*{ID}         { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno); column_counter += strlen(yytext); return FUNCTION_NAME; }
+"main" {
+    printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
+    column_counter += strlen(yytext);
+    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    return MAIN;
+}
+
+_[0-9]*{ID} {
+    printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += strlen(yytext);
+    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    return FUNCTION_NAME;
+}
 
  /* Boucles et conditions */
 "<if"               { printf("TOKEN: IF_BEGIN (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return IF_BEGIN; }
@@ -54,6 +68,7 @@ _[0-9]*{ID}         { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "string"            { printf("TOKEN: TYPE_STRING (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return TYPE_STRING; }
 "boolean"           { printf("TOKEN: TYPE_BOOLEAN (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return TYPE_BOOLEAN; }
 "char"              { printf("TOKEN: TYPE_CHAR (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return TYPE_CHAR; }
+"void"              { printf("TOKEN: TYPE_VOID (ligne: %d)\n", yylineno); column_counter += strlen(yytext); return TYPE_VOID; }
 
  /* Littéraux */
 {DIGIT}+            { printf("TOKEN: INTEGER_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += strlen(yytext); return INTEGER_LITERAL; }
@@ -128,7 +143,12 @@ _[0-9]*{ID}         { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "#"[^\n]*           ; /* ignorer les commentaires */
 
  /* Identifiants */
-{ID}                { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); column_counter += strlen(yytext); return IDENTIFIER; }
+{ID} {
+    printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += strlen(yytext);
+    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    return IDENTIFIER;
+}
 
  /* Gestion des erreurs */
 .                   { printf("Erreur lexicale : caractère inconnu '%s' dans le fichier %s à la ligne %d, caractère %d\n", yytext, filename, yylineno, column_counter); }
@@ -157,10 +177,18 @@ int main(int argc, char* argv[]) {
 
     yyset_in(file);
 
+    initializeSymbolsTable(&symbolsTable);
+
     while (yylex() != 0) {
     }
 
     fclose(file);
+
+    printf("\n");
+    printSymbolsTable(&symbolsTable);
+    printf("\n");
+
+    deleteSymbolsTable(&symbolsTable); // this should be moved to the end of the compilation process
     
     return 0;
 }

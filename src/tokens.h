@@ -14,6 +14,7 @@ typedef enum Token
     TYPE_STRING,
     TYPE_BOOLEAN,
     TYPE_CHAR,
+    TYPE_VOID,
 
     /* Identifiants et Littéraux */
     IDENTIFIER,
