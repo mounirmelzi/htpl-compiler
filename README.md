@@ -1,8 +1,13 @@
 # HTPL Compiler
 
-## Overview
+This project contains an `HTPL` (**H**yper**T**ext **P**rogramming **L**anguage) Compiler for processing `HTPL` programs.
 
-This project contains an HTPL (HyperText Programming Language) Compiler for processing HTPL programs.
+## Project Authors
+
+- **M**ELZI **M**ounir
+- **D**JEDJIG **N**ada **F**arah
+- **B**OUHADI **H**aifaa
+- **G**UEDDOUCHE **R**ania
 
 ## Prerequisites
 
