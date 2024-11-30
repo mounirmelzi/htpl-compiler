@@ -2,7 +2,7 @@
 
 // --- Data Structures ---
 
-typedef struct Attribute
+typedef struct Attribute // represente un attribut d'un symbole (categorie, type, ...)
 {
     char *name;
     char *value;
@@ -15,18 +15,18 @@ typedef struct AttributeNode
     struct AttributeNode *previous;
 } AttributeNode;
 
-typedef struct AttributesList
+typedef struct AttributesList // liste doublement chainee contenant des AttributeNode
 {
-    AttributeNode *first;
-    AttributeNode *last;
-    int size;
+    AttributeNode *first; // premier noeud
+    AttributeNode *last;  // dernier noeud
+    int size;             // nbr total d'attributs
 } AttributesList;
 
-typedef struct Symbol
+typedef struct Symbol // represente une entite identifiable dans le programme (variable, function, struct,..)
 {
     int id;
     char *name;
-    AttributesList attributes;
+    AttributesList attributes; // liste des attributs associes au symbole
 } Symbol;
 
 typedef struct SymbolNode
@@ -36,11 +36,11 @@ typedef struct SymbolNode
     struct SymbolNode *previous;
 } SymbolNode;
 
-typedef struct SymbolsTable
+typedef struct SymbolsTable // liste doublement chainee contenant des SymbolNode
 {
-    SymbolNode *first;
-    SymbolNode *last;
-    int size;
+    SymbolNode *first; // premier noeud
+    SymbolNode *last;  // dernier noeud
+    int size;          // nbr total de symboles
 } SymbolsTable;
 
 // --- Functions ---
