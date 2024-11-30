@@ -99,7 +99,7 @@ _[0-9]*{ID} {
                 case '\'': processed[j++] = '\''; break; // apostrophe
                 default:
                     // Si un caractère invalide suit un antislash.
-                    fprintf(stderr, "Warning: Unknown escape sequence '\\%c' at line %d\n", yytext[i], yylineno);
+                    printf(stderr, "Warning: Unknown escape sequence '\\%c' at line %d\n", yytext[i], yylineno);
                     processed[j++] = yytext[i];
             } 
         } else if (yytext[i] != '"') {
