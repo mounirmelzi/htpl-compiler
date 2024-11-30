@@ -1,5 +1,8 @@
 #!/bin/bash
 
+mkdir -p ../bin
+mkdir -p ../out
+
 if [ $# -eq 0 ]; then
     FILE_NAME="../examples/default.htpl"
     echo -e "No filename provided. Using default file: $FILE_NAME\n"
