@@ -44,14 +44,21 @@ ID          [a-zA-Z][a-zA-Z0-9]*
 "main" {
     printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
     column_counter += strlen(yytext);
-    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+
+    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    createAttribute(&symbol->attributes, "category", "function");
+    createAttribute(&symbol->attributes, "entry", "true");
+
     return MAIN;
 }
 
 _[0-9]*{ID} {
     printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno);
     column_counter += strlen(yytext);
-    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+
+    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    createAttribute(&symbol->attributes, "category", "function");
+
     return FUNCTION_NAME;
 }
 
@@ -146,7 +153,10 @@ _[0-9]*{ID} {
 {ID} {
     printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno);
     column_counter += strlen(yytext);
-    createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+
+    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
+    createAttribute(&symbol->attributes, "category", "unknown");
+
     return IDENTIFIER;
 }
 

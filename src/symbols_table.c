@@ -46,14 +46,15 @@ Symbol *searchSymbol(SymbolsTable *table, const char *name)
     return NULL;
 }
 
-int createSymbol(SymbolsTable *table, int id, const char *name)
+Symbol *createSymbol(SymbolsTable *table, int id, const char *name)
 {
-    if (searchSymbol(table, name))
-        return 0; // Symbol already exists
+    Symbol *symbol;
+    if ((symbol = searchSymbol(table, name)))
+        return symbol; // Symbol already exists
 
     SymbolNode *newNode = malloc(sizeof(SymbolNode));
     if (!newNode)
-        return 0;
+        return NULL;
 
     newNode->symbol.id = id;
     newNode->symbol.name = strdup(name);
@@ -69,7 +70,7 @@ int createSymbol(SymbolsTable *table, int id, const char *name)
 
     table->last = newNode;
     table->size++;
-    return 1; // Success
+    return &newNode->symbol; // Success
 }
 
 int deleteSymbol(SymbolsTable *table, const char *name)
@@ -117,14 +118,15 @@ Attribute *searchAttribute(AttributesList *attributes, const char *name)
     return NULL;
 }
 
-int createAttribute(AttributesList *attributes, const char *name, const char *value)
+Attribute *createAttribute(AttributesList *attributes, const char *name, const char *value)
 {
-    if (searchAttribute(attributes, name))
-        return 0; // Attribute already exists
+    Attribute *attribute;
+    if ((attribute = searchAttribute(attributes, name)))
+        return attribute; // Attribute already exists
 
     AttributeNode *newNode = malloc(sizeof(AttributeNode));
     if (!newNode)
-        return 0;
+        return NULL;
 
     newNode->attribute.name = strdup(name);
     newNode->attribute.value = strdup(value);
@@ -138,7 +140,7 @@ int createAttribute(AttributesList *attributes, const char *name, const char *va
 
     attributes->last = newNode;
     attributes->size++;
-    return 1; // Success
+    return &newNode->attribute; // Success
 }
 
 int deleteAttribute(AttributesList *attributes, const char *name)
@@ -200,9 +202,7 @@ void printAttributesList(const AttributesList *attributes)
     AttributeNode *current = attributes->first;
     while (current != NULL)
     {
-        printf("    - Name: %s, Value: %s\n",
-               current->attribute.name,
-               current->attribute.value);
+        printf("    - %s: %s\n", current->attribute.name, current->attribute.value);
         current = current->next;
     }
 }
@@ -220,12 +220,8 @@ void printSymbolsTable(const SymbolsTable *table)
     SymbolNode *current = table->first;
     while (current != NULL)
     {
-        printf("- Symbol ID: %d, Name: %s\n",
-               current->symbol.id,
-               current->symbol.name);
-
+        printf("- Symbol ID: %d, Name: %s\n", current->symbol.id, current->symbol.name);
         printAttributesList(&(current->symbol.attributes));
-
         current = current->next;
     }
 }

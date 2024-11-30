@@ -49,11 +49,11 @@ void initializeSymbolsTable(SymbolsTable *table);
 void deleteSymbolsTable(SymbolsTable *table);
 
 Symbol *searchSymbol(SymbolsTable *table, const char *name);
-int createSymbol(SymbolsTable *table, int id, const char *name);
+Symbol *createSymbol(SymbolsTable *table, int id, const char *name);
 int deleteSymbol(SymbolsTable *table, const char *name);
 
 Attribute *searchAttribute(AttributesList *attributes, const char *name);
-int createAttribute(AttributesList *attributes, const char *name, const char *value);
+Attribute *createAttribute(AttributesList *attributes, const char *name, const char *value);
 int deleteAttribute(AttributesList *attributes, const char *name);
 int updateAttribute(AttributesList *attributes, const char *name, const char *newValue);
 void initializeAttributesList(AttributesList *attributes);
