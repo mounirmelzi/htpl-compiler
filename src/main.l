@@ -82,7 +82,7 @@ _[0-9]*{ID} {
 {DIGIT}+"."{DIGIT}+ { printf("TOKEN: FLOAT_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return FLOAT_LITERAL; }
 
  /* traietement d'une chaine de caractere */
-\"([^\"\\]|\\["\\nt])*\" {
+\"([^\"\\]|\\.)*\" {
     // si un caractere special est precédé par un antislash, le caractere sera concidéré comme faisant partie de la chaine.
     char processed[1024]; //contenu final de la chaine
     int i = 0, j = 0;
@@ -99,7 +99,7 @@ _[0-9]*{ID} {
                 case '\'': processed[j++] = '\''; break; // apostrophe
                 default:
                     // Si un caractère invalide suit un antislash.
-                    printf(stderr, "Warning: Unknown escape sequence '\\%c' at line %d\n", yytext[i], yylineno);
+                    fprintf(stderr, "Warning: Unknown escape sequence '\\%c' at line %d\n", yytext[i], yylineno);
                     processed[j++] = yytext[i];
             } 
         } else if (yytext[i] != '"') {
