@@ -55,7 +55,11 @@ extern SymbolsTable symbolsTable;
 
 %%
 
-program: %empty;
+program: HTPL_BEGIN code HTPL_END;
+code: main;
+main: FUNCTION_BEGIN signature GREATER body FUNCTION_END;
+signature: MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID;
+body: WRITE LEFT_PARENTHESIS STRING_LITERAL RIGHT_PARENTHESIS SEMICOLON;
 
 %%
 
