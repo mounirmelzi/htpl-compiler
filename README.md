@@ -12,7 +12,7 @@ This project contains an `HTPL` (**H**yper**T**ext **P**rogramming **L**anguage)
 ## Prerequisites
 
 - Linux environment
-- Latest version of Flex
+- Latest version of Flex and Bison
 - Latest version of GCC
 
 ## Installation and Usage
@@ -49,5 +49,5 @@ Replace `<filename>` with the path to your HTPL source file.
 
 ## Notes
 
-- Ensure you have the latest versions of Flex and GCC installed
+- Ensure you have the latest versions of Flex, Bison and GCC installed
 - The compiler is designed to work in a Linux environment
