@@ -1,7 +1,4 @@
 #!/bin/bash
 
-LEX_OUTPUT="../out/lex.yy.c"
-BINARY_PROGRAM="../bin/prog"
-
-rm "$LEX_OUTPUT"
-rm "$BINARY_PROGRAM"
+rm -rf ../bin/*
+rm -rf ../out/*
