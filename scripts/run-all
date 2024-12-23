@@ -1,0 +1,9 @@
+#!/bin/bash
+
+./clean
+set -e
+
+for file in ../examples/*.htpl
+do
+  ./run "$file"
+done

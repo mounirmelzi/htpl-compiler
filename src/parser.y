@@ -50,6 +50,8 @@ SymbolsTable symbolsTable;
 
 
 
+%nonassoc ASSIGN
+
 %left OR
 %left AND
 %left EQUAL NOT_EQUAL
@@ -324,7 +326,7 @@ int main(int argc, char* argv[]) {
 
     initializeSymbolsTable(&symbolsTable);
 
-    yyparse();
+    int result = yyparse();
 
     fclose(file);
 
@@ -334,5 +336,13 @@ int main(int argc, char* argv[]) {
 
     deleteSymbolsTable(&symbolsTable);
 
-    return 0;
+    if (result == 0) {
+        printf("Parsing completed successfully!\n");
+    } else if (result == 1) {
+        printf("Parsing failed due to an error.\n");
+    } else if (result == 2) {
+        printf("Parsing failed due to memory exhaustion.\n");
+    }
+
+    return result;
 }
