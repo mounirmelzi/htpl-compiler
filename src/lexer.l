@@ -13,9 +13,9 @@
 #include "symbols_table.h"
 
 
-char *filename; // the file to compile
-int column_counter = 1;  // custom column counter
-SymbolsTable symbolsTable; // global variable for the symbols table
+extern char *filename;
+
+int column_counter = 1;
 
 %}
 
@@ -47,26 +47,9 @@ ID          [a-zA-Z][a-zA-Z0-9]*
  /* Fonctions */
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_BEGIN; }
 "</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_END; }
-"main" {
-    printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
-    column_counter += yyleng;
+"main"              { printf("TOKEN: MAIN (ligne: %d)\n", yylineno); column_counter += yyleng; return MAIN; }
 
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "function");
-    createAttribute(&symbol->attributes, "entry", "true");
-
-    return MAIN;
-}
-
-_[0-9]*{ID} {
-    printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno);
-    column_counter += yyleng;
-
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "function");
-
-    return FUNCTION_NAME;
-}
+_{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return FUNCTION_NAME; }
 
  /* Boucles et conditions */
 "<if"               { printf("TOKEN: IF_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return IF_BEGIN; }
@@ -170,15 +153,7 @@ _[0-9]*{ID} {
 "#"[^\n]*           ; /* ignorer les commentaires */
 
  /* Identifiants */
-{ID} {
-    printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno);
-    column_counter += yyleng;
-
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "unknown");
-
-    return IDENTIFIER;
-}
+{ID}                { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return IDENTIFIER; }
 
  /* Gestion des erreurs */
 .                   { printf("File \"%s\", line %d, character %d: Lexical Error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
