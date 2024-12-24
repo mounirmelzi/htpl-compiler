@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "parser.h"
+#include "parser.tab.h"
 #include "symbols_table.h"
 
 
@@ -24,6 +24,7 @@ SymbolsTable symbolsTable; // global variable for the symbols table
 /* *** *** les options de flex *** *** */
 
 %option noyywrap
+%option yylineno
 
 
 
@@ -184,3 +185,4 @@ _[0-9]*{ID} {
 .                   { printf("File \"%s\", line %d, character %d: Lexical Error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
 
 %%
+
