@@ -19,7 +19,7 @@ BISON_FILE="../src/parser.y"
 BISON_OUTPUT="../out/parser.c"
 BISON_HEADER="../out/parser.h"
 
-LIBRARIES="../src/symbols_table.c"
+LIBRARIES="../src/symbols_table.c ../src/tree.c"
 
 BINARY_PROGRAM="../bin/compiler"
 
@@ -27,7 +27,14 @@ BINARY_PROGRAM="../bin/compiler"
 ./clean
 set -e
 
+echo "Generating parser files..."
 bison -d -o "$BISON_OUTPUT" --defines="$BISON_HEADER" "$BISON_FILE"
+
+echo "Generating lexer files..."
 flex --header-file="$LEX_HEADER" -o "$LEX_OUTPUT" "$LEX_FILE"
-gcc -o "$BINARY_PROGRAM" "$BISON_OUTPUT" "$LEX_OUTPUT" "$LIBRARIES" -lfl -lm -I"../src" -I"../out"
+
+echo "Compiling the program..."
+gcc -o "$BINARY_PROGRAM" "$BISON_OUTPUT" "$LEX_OUTPUT" $LIBRARIES -lfl -lm -I"../src" -I"../out"
+
+echo "Running the compiler..."
 "$BINARY_PROGRAM" "$FILE_NAME"
