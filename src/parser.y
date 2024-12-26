@@ -63,17 +63,15 @@ SymbolsTable symbolsTable;
 %token STRUCT_BEGIN STRUCT_END
 
 
-
 %nonassoc ASSIGN
-
 %left OR
 %left AND
-%left EQUAL NOT_EQUAL
-%left LESS LESS_OR_EQUAL GREATER GREATER_OR_EQUAL
+%nonassoc EQUAL NOT_EQUAL
+%nonassoc LESS LESS_OR_EQUAL GREATER GREATER_OR_EQUAL
 %left PLUS MINUS
 %left MULTIPLY DIVIDE MODULO
-%left NEG
-%left NOT
+%right NEG
+%right NOT
 
 
 
@@ -303,37 +301,46 @@ call_statement
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS expression RIGHT_PARENTHESIS GREATER statement_list IF_END
-    | IF_BEGIN LEFT_PARENTHESIS expression RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END
+    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END
 ;
 
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS expression RIGHT_PARENTHESIS GREATER statement_list WHILE_END
+    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END
 ;
 
 
 /* expression rules */
 
-expression
+condition
+    : calculation EQUAL calculation
+    | calculation NOT_EQUAL calculation
+    | calculation LESS calculation
+    | calculation LESS_OR_EQUAL calculation
+    | calculation GREATER calculation
+    | calculation GREATER_OR_EQUAL calculation
+    | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS
+    | condition AND condition
+    | condition OR condition
+    | NOT condition
+;
+
+calculation
     : literal
     | variable
     | function_call
-    | LEFT_PARENTHESIS expression RIGHT_PARENTHESIS
-    | expression PLUS expression
-    | expression MINUS expression
-    | MINUS expression %prec NEG
-    | expression MULTIPLY expression
-    | expression DIVIDE expression
-    | expression MODULO expression
-    | expression AND expression
-    | expression OR expression
-    | NOT expression
-    | expression EQUAL expression
-    | expression NOT_EQUAL expression
-    | expression LESS expression
-    | expression LESS_OR_EQUAL expression
-    | expression GREATER expression
-    | expression GREATER_OR_EQUAL expression
+    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS
+    | calculation PLUS calculation
+    | calculation MINUS calculation
+    | calculation MULTIPLY calculation
+    | calculation DIVIDE calculation
+    | calculation MODULO calculation
+    | MINUS calculation %prec NEG
+;
+
+expression
+    : calculation
+    | condition
 ;
 
 %%
