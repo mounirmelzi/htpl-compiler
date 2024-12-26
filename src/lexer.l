@@ -47,9 +47,19 @@ ID          [a-zA-Z][a-zA-Z0-9]*
  /* Fonctions */
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_BEGIN; }
 "</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_END; }
-"main"              { printf("TOKEN: MAIN (ligne: %d)\n", yylineno); column_counter += yyleng; return MAIN; }
+"main"              {
+    printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup(yytext);
+    return MAIN;
+}
 
-_{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return FUNCTION_NAME; }
+_{ID}               {
+    printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup(yytext);
+    return FUNCTION_NAME;
+}
 
  /* Boucles et conditions */
 "<if"               { printf("TOKEN: IF_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return IF_BEGIN; }
@@ -67,8 +77,19 @@ _{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "void"              { printf("TOKEN: VOID (ligne: %d)\n", yylineno); column_counter += yyleng; return VOID; }
 
  /* Littéraux */
-{DIGIT}+            { printf("TOKEN: INTEGER_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return INTEGER_LITERAL; }
-{DIGIT}+"."{DIGIT}+ { printf("TOKEN: FLOAT_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return FLOAT_LITERAL; }
+{DIGIT}+            {
+    printf("TOKEN: INTEGER_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.int_t = atoi(yytext);
+    return INTEGER_LITERAL;
+}
+
+{DIGIT}+"."{DIGIT}+ {
+    printf("TOKEN: FLOAT_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.float_t = atof(yytext);
+    return FLOAT_LITERAL;
+}
 
  /* traietement d'une chaine de caractere */
 \"([^\"\\]|\\.)*\" {
@@ -100,11 +121,23 @@ _{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
     processed[j] = '\0'; // terminaison de la chaîne
     printf("TOKEN: STRING_LITERAL(%s) (ligne: %d)\n", processed, yylineno);
     column_counter += yyleng;
+    yylval.string_t = strdup(processed);
     return STRING_LITERAL;
 }
 
-"true"|"false"      { printf("TOKEN: BOOLEAN_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return BOOLEAN_LITERAL; }
-'.'                 { printf("TOKEN: CHAR_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return CHAR_LITERAL; }
+"true"|"false"      {
+    printf("TOKEN: BOOLEAN_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.boolean_t = (strcmp(yytext, "true") == 0);
+    return BOOLEAN_LITERAL;
+}
+
+'.'                 {
+    printf("TOKEN: CHAR_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.char_t = yytext[0];
+    return CHAR_LITERAL;
+}
 
  /* Tableaux */
 "["                 { printf("TOKEN: LEFT_BRACKET (ligne: %d)\n", yylineno); column_counter += yyleng; return LEFT_BRACKET; }
@@ -153,7 +186,12 @@ _{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 "#"[^\n]*           ; /* ignorer les commentaires */
 
  /* Identifiants */
-{ID}                { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return IDENTIFIER; }
+{ID}                {
+    printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup(yytext);
+    return IDENTIFIER;
+}
 
  /* Gestion des erreurs */
 .                   { printf("File \"%s\", line %d, character %d: lexical error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }

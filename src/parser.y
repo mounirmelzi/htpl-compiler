@@ -25,9 +25,17 @@ SymbolsTable symbolsTable;
 
 
 %define lr.type lalr
-%define api.value.type union
 %define parse.lac full
 %define parse.error detailed
+
+
+%union {
+    int int_t;
+    float float_t;
+    bool boolean_t;
+    char char_t;
+    char *string_t;
+}
 
 
 
@@ -35,7 +43,7 @@ SymbolsTable symbolsTable;
 
 %token TYPE_INTEGER TYPE_FLOAT TYPE_BOOLEAN TYPE_CHAR TYPE_STRING
 %token VOID
-%token INTEGER_LITERAL FLOAT_LITERAL BOOLEAN_LITERAL CHAR_LITERAL STRING_LITERAL
+%token <int_t>INTEGER_LITERAL <float_t>FLOAT_LITERAL <boolean_t>BOOLEAN_LITERAL <char_t>CHAR_LITERAL <string_t>STRING_LITERAL
 
 %token PLUS MINUS MULTIPLY DIVIDE MODULO
 %token AND OR NOT
@@ -46,10 +54,10 @@ SymbolsTable symbolsTable;
 %token LEFT_BRACKET RIGHT_BRACKET
 
 %token COLON SEMICOLON DOT COMMA
-%token RETURN ASSIGN LET IDENTIFIER
+%token RETURN ASSIGN LET <string_t>IDENTIFIER
 
 %token HTPL_BEGIN HTPL_END
-%token FUNCTION_BEGIN FUNCTION_END FUNCTION_NAME MAIN READ WRITE
+%token FUNCTION_BEGIN FUNCTION_END <string_t>FUNCTION_NAME <string_t>MAIN READ WRITE
 %token IF_BEGIN IF_END ELSE
 %token WHILE_BEGIN WHILE_END
 %token STRUCT_BEGIN STRUCT_END
@@ -97,11 +105,19 @@ code
 /* function rules */
 
 main_function
-    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER function_body FUNCTION_END
+    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER function_body FUNCTION_END {
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "function");
+        createAttribute(&symbol->attributes, "entry", "true");
+    }
 ;
 
 function_definition
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER function_body FUNCTION_END
+    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER function_body FUNCTION_END {
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "function");
+        createAttribute(&symbol->attributes, "entry", "false");
+    }
 ;
 
 function_signature
@@ -140,7 +156,10 @@ argument_list
 /* struct rules */
 
 struct_definition
-    : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END
+    : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "struct");
+    }
 ;
 
 struct_body
@@ -156,11 +175,19 @@ field_definition
 /* variable rules */
 
 variable_definition
-    : LET IDENTIFIER COLON type SEMICOLON
+    : LET IDENTIFIER COLON type SEMICOLON {
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "variable");
+        createAttribute(&symbol->attributes, "is_initialised", "false");
+    }
 ;
 
 variable_initialisation
-    : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON
+    : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "variable");
+        createAttribute(&symbol->attributes, "is_initialised", "true");
+    }
 ;
 
 initialisation_expression
