@@ -59,6 +59,10 @@ int addChildren(Node *parent, int size, ...)
     for (int i = 0; i < size; i++)
     {
         Node *child = va_arg(args, Node *);
+
+        if (!child)
+            continue;
+
         parent->children[parent->size++] = child;
         child->parent = parent;
     }
@@ -123,7 +127,7 @@ static void printNodeRecursive(const Node *node, int depth)
 {
     for (int i = 0; i < depth; i++)
         printf("  ");
-    printf("%s\n", node->name);
+    printf("%d - %s\n", depth, node->name);
 
     for (int i = 0; i < node->size; i++)
     {

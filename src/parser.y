@@ -148,6 +148,7 @@ program
 code_list
     : code_list code {
         $$ = createNode(&syntaxTree, "code_list");
+        addChildren($$, 2, $1, $2);
     }
     | %empty {
         $$ = createNode(&syntaxTree, "code_list");
@@ -155,10 +156,22 @@ code_list
 ;
 
 code
-    : function_definition
-    | struct_definition
-    | variable_definition
-    | variable_initialisation
+    : function_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | struct_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | variable_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | variable_initialisation {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
@@ -171,6 +184,7 @@ main_function
         createAttribute(&symbol->attributes, "entry", "true");
 
         $$ = createNode(&syntaxTree, "main_function");
+        addChildren($$, 1, $8);
     }
 ;
 
@@ -179,40 +193,77 @@ function_definition
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
         createAttribute(&symbol->attributes, "entry", "false");
+
+        $$ = createNode(&syntaxTree, "function_definition");
+        addChildren($$, 2, $3, $5);
     }
 ;
 
 function_signature
-    : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type
-    | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type
+    : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type {
+        $$ = createNode(&syntaxTree, "function_signature");
+        addChildren($$, 1, $4);
+    }
+    | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type {
+        $$ = createNode(&syntaxTree, "function_signature");
+        addChildren($$, 2, $2, $5);
+    }
 ;
 
 parameter_list
-    : parameter_list COMMA parameter
-    | parameter
+    : parameter_list COMMA parameter {
+        $$ = createNode(&syntaxTree, "parameter_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | parameter {
+        $$ = createNode(&syntaxTree, "parameter_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 parameter
-    : IDENTIFIER COLON type
+    : IDENTIFIER COLON type {
+        $$ = createNode(&syntaxTree, "parameter");
+        addChildren($$, 1, $3);
+    }
 ;
 
 return_type
-    : type
-    | VOID
+    : type {
+        $$ = createNode(&syntaxTree, "return_type");
+        addChildren($$, 1, $1);
+    }
+    | VOID {
+        $$ = createNode(&syntaxTree, "return_type");
+    }
 ;
 
 function_body
-    : statement_list
+    : statement_list {
+        $$ = createNode(&syntaxTree, "function_body");
+        addChildren($$, 1, $1);
+    }
 ;
 
 function_call
-    : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS
-    | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS
+    : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+    }
+    | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+        addChildren($$, 1, $3);
+    }
 ;
 
 argument_list
-    : argument_list COMMA expression
-    | expression
+    : argument_list COMMA expression {
+        $$ = createNode(&syntaxTree, "argument_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | expression {
+        $$ = createNode(&syntaxTree, "argument_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
@@ -222,16 +273,28 @@ struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "struct");
+
+        $$ = createNode(&syntaxTree, "struct_definition");
+        addChildren($$, 1, $4);
     }
 ;
 
 struct_body
-    : struct_body field_definition
-    | field_definition
+    : struct_body field_definition {
+        $$ = createNode(&syntaxTree, "struct_body");
+        addChildren($$, 2, $1, $2);
+    }
+    | field_definition {
+        $$ = createNode(&syntaxTree, "struct_body");
+        addChildren($$, 1, $1);
+    }
 ;
 
 field_definition
-    : LET IDENTIFIER COLON type SEMICOLON
+    : LET IDENTIFIER COLON type SEMICOLON {
+        $$ = createNode(&syntaxTree, "field_definition");
+        addChildren($$, 1, $4);
+    }
 ;
 
 
@@ -242,6 +305,9 @@ variable_definition
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
         createAttribute(&symbol->attributes, "is_initialised", "false");
+
+        $$ = createNode(&syntaxTree, "variable_definition");
+        addChildren($$, 1, $4);
     }
 ;
 
@@ -250,162 +316,357 @@ variable_initialisation
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
         createAttribute(&symbol->attributes, "is_initialised", "true");
+
+        $$ = createNode(&syntaxTree, "variable_initialisation");
+        addChildren($$, 2, $4, $6);
     }
 ;
 
 initialisation_expression
-    : expression
-    | array_literal
-    | struct_literal
+    : expression {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
+    | array_literal {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
+    | struct_literal {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* type rules */
 
 type
-    : TYPE_INTEGER
-    | TYPE_FLOAT
-    | TYPE_BOOLEAN
-    | TYPE_CHAR
-    | TYPE_STRING
-    | struct_type
-    | array_type
+    : TYPE_INTEGER {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_FLOAT {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_BOOLEAN {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_CHAR {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_STRING {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | struct_type {
+        $$ = createNode(&syntaxTree, "type");
+        addChildren($$, 1, $1);
+    }
+    | array_type {
+        $$ = createNode(&syntaxTree, "type");
+        addChildren($$, 1, $1);
+    }
 ;
 
 struct_type
-    : IDENTIFIER
+    : IDENTIFIER {
+        $$ = createNode(&syntaxTree, "struct_type");
+    }
 ;
 
 array_type
-    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET
+    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "array_type");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* variable access rules */
 
 variable
-    : variable DOT IDENTIFIER
-    | variable LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET
-    | IDENTIFIER
+    : variable DOT IDENTIFIER {
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
+    }
+    | variable LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
+    }
+    | IDENTIFIER {
+        $$ = createNode(&syntaxTree, "variable");
+    }
 ;
 
 literal
-    : INTEGER_LITERAL
-    | FLOAT_LITERAL
-    | BOOLEAN_LITERAL
-    | CHAR_LITERAL
-    | STRING_LITERAL
+    : INTEGER_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | FLOAT_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | BOOLEAN_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | CHAR_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | STRING_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
 ;
 
 
 /* struct literals */
 
 struct_literal
-    : LEFT_BRACE struct_field_list RIGHT_BRACE
+    : LEFT_BRACE struct_field_list RIGHT_BRACE {
+        $$ = createNode(&syntaxTree, "struct_literal");
+        addChildren($$, 1, $2);
+    }
 ;
 
 struct_field_list
-    : struct_field_list COMMA struct_field
-    | struct_field
+    : struct_field_list COMMA struct_field {
+        $$ = createNode(&syntaxTree, "struct_field_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | struct_field {
+        $$ = createNode(&syntaxTree, "struct_field_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 struct_field
-    : IDENTIFIER ASSIGN expression
+    : IDENTIFIER ASSIGN expression {
+        $$ = createNode(&syntaxTree, "struct_field");
+        addChildren($$, 1, $3);
+    }
 ;
 
 
 /* array literals */
 
 array_literal
-    : LEFT_BRACKET array_values RIGHT_BRACKET
+    : LEFT_BRACKET array_values RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "array_literal");
+        addChildren($$, 1, $2);
+    }
 ;
 
 array_values
-    : array_values COMMA expression
-    | expression
+    : array_values COMMA expression {
+        $$ = createNode(&syntaxTree, "array_values");
+        addChildren($$, 2, $1, $3);
+    }
+    | expression {
+        $$ = createNode(&syntaxTree, "array_values");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* statement rules */
 
 statement_list
-    : statement_list statement
-    | statement
+    : statement_list statement {
+        $$ = createNode(&syntaxTree, "statement_list");
+        addChildren($$, 2, $1, $2);
+    }
+    | statement {
+        $$ = createNode(&syntaxTree, "statement_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 statement
-    : variable_definition
-    | variable_initialisation
-    | write_statement
-    | read_statement
-    | assign_statement
-    | return_statement
-    | call_statement
-    | if_statement
-    | while_statement
+    : variable_definition {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | variable_initialisation {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | write_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | read_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | assign_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | return_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | call_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | if_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | while_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
 ;
 
 write_statement
-    : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON
+    : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON {
+        $$ = createNode(&syntaxTree, "write_statement");
+        addChildren($$, 1, $3);
+    }
 ;
 
 read_statement
-    : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON
+    : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON {
+        $$ = createNode(&syntaxTree, "read_statement");
+        addChildren($$, 1, $3);
+    }
 ;
 
 assign_statement
-    : variable ASSIGN expression SEMICOLON
+    : variable ASSIGN expression SEMICOLON {
+        $$ = createNode(&syntaxTree, "assign_statement");
+        addChildren($$, 2, $1, $3);
+    }
 ;
 
 return_statement
-    : RETURN expression SEMICOLON
+    : RETURN expression SEMICOLON {
+        $$ = createNode(&syntaxTree, "return_statement");
+        addChildren($$, 1, $2);
+    }
 ;
 
 call_statement
-    : function_call SEMICOLON
+    : function_call SEMICOLON {
+        $$ = createNode(&syntaxTree, "call_statement");
+        addChildren($$, 1, $1);
+    }
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 2, $3, $6);
+    }
+    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 3, $3, $6, $8);
+    }
 ;
 
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END
+    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END {
+        $$ = createNode(&syntaxTree, "while_statement");
+        addChildren($$, 2, $3, $6);
+    }
 ;
 
 
 /* expression rules */
 
 condition
-    : calculation EQUAL calculation
-    | calculation NOT_EQUAL calculation
-    | calculation LESS calculation
-    | calculation LESS_OR_EQUAL calculation
-    | calculation GREATER calculation
-    | calculation GREATER_OR_EQUAL calculation
-    | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS
-    | condition AND condition
-    | condition OR condition
-    | NOT condition
+    : calculation EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation NOT_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation LESS calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation LESS_OR_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation GREATER calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation GREATER_OR_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 1, $2);
+    }
+    | condition AND condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | condition OR condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | NOT condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 1, $2);
+    }
 ;
 
 calculation
-    : literal
-    | variable
-    | function_call
-    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS
-    | calculation PLUS calculation
-    | calculation MINUS calculation
-    | calculation MULTIPLY calculation
-    | calculation DIVIDE calculation
-    | calculation MODULO calculation
-    | MINUS calculation %prec NEG
+    : literal {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $1);
+    }
+    | variable {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $1);
+    }
+    | function_call {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $1);
+    }
+    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $2);
+    }
+    | calculation PLUS calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MINUS calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MULTIPLY calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation DIVIDE calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MODULO calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | MINUS calculation %prec NEG {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $2);
+    }
 ;
 
 expression
-    : calculation
-    | condition
+    : calculation {
+        $$ = createNode(&syntaxTree, "expression");
+        addChildren($$, 1, $1);
+    }
+    | condition {
+        $$ = createNode(&syntaxTree, "expression");
+        addChildren($$, 1, $1);
+    }
 ;
 
 %%
