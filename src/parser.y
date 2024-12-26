@@ -24,6 +24,12 @@ SymbolsTable symbolsTable;
 %}
 
 
+%define lr.type lalr
+%define api.value.type union
+%define parse.lac full
+%define parse.error detailed
+
+
 
 /* *** *** section de déclaration *** *** */
 
@@ -310,7 +316,7 @@ expression
 /* *** *** section de code *** *** */
 
 int yyerror(const char *error_message) {
-    printf("File \"%s\", line %d, character %d: Syntax Error, unexpected token '%s'\n", filename, yylineno, column_counter, yytext);
+    printf("File \"%s\", line %d, character %d: %s\n", filename, yylineno, column_counter, error_message);
 }
 
 int main(int argc, char* argv[]) {

@@ -156,6 +156,6 @@ _{ID}               { printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, y
 {ID}                { printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return IDENTIFIER; }
 
  /* Gestion des erreurs */
-.                   { printf("File \"%s\", line %d, character %d: Lexical Error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
+.                   { printf("File \"%s\", line %d, character %d: lexical error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
 
 %%
