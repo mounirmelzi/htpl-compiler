@@ -9,8 +9,8 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "parser.h"
 #include "tree.h"
+#include "parser.h"
 #include "symbols_table.h"
 
 char *filename; // the file to compile
