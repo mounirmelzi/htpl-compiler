@@ -77,7 +77,6 @@ SyntaxTree syntaxTree;
 %right NOT
 
 
-/*
 %type <node_t> program
 %type <node_t> code_list
 %type <node_t> code
@@ -127,9 +126,6 @@ SyntaxTree syntaxTree;
 %type <node_t> condition
 %type <node_t> calculation
 %type <node_t> expression
-*/
-
-%type <node_t> program code_list main_function
 
 
 

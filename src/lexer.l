@@ -10,7 +10,6 @@
 #include <math.h>
 
 #include "parser.h"
-#include "symbols_table.h"
 
 
 extern char *filename;
