@@ -138,8 +138,12 @@ struct_definition
 ;
 
 struct_body
-    : struct_body variable_definition
-    | variable_definition
+    : struct_body field_definition
+    | field_definition
+;
+
+field_definition
+    : LET IDENTIFIER COLON type SEMICOLON
 ;
 
 
