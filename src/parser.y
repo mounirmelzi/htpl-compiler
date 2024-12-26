@@ -11,15 +11,17 @@
 
 #include "lexer.h"
 #include "symbols_table.h"
+#include "syntax_tree.h"
 
 
-int yyerror(const char *);
+void yyerror(const char *);
 
 
 extern int column_counter;
 
 char *filename;
 SymbolsTable symbolsTable;
+SyntaxTree syntaxTree;
 
 %}
 
@@ -35,6 +37,7 @@ SymbolsTable symbolsTable;
     bool boolean_t;
     char char_t;
     char *string_t;
+    void *node_t;
 }
 
 
@@ -74,6 +77,61 @@ SymbolsTable symbolsTable;
 %right NOT
 
 
+/*
+%type <node_t> program
+%type <node_t> code_list
+%type <node_t> code
+
+%type <node_t> main_function
+%type <node_t> function_definition
+%type <node_t> function_signature
+%type <node_t> parameter_list
+%type <node_t> parameter
+%type <node_t> return_type
+%type <node_t> function_body
+%type <node_t> function_call
+%type <node_t> argument_list
+
+%type <node_t> struct_definition
+%type <node_t> struct_body
+%type <node_t> field_definition
+
+%type <node_t> variable_definition
+%type <node_t> variable_initialisation
+%type <node_t> initialisation_expression
+
+%type <node_t> type
+%type <node_t> struct_type
+%type <node_t> array_type
+
+%type <node_t> variable
+%type <node_t> literal
+
+%type <node_t> struct_literal
+%type <node_t> struct_field_list
+%type <node_t> struct_field
+
+%type <node_t> array_literal
+%type <node_t> array_values
+
+%type <node_t> statement_list
+%type <node_t> statement
+%type <node_t> write_statement
+%type <node_t> read_statement
+%type <node_t> assign_statement
+%type <node_t> return_statement
+%type <node_t> call_statement
+%type <node_t> if_statement
+%type <node_t> while_statement
+
+%type <node_t> condition
+%type <node_t> calculation
+%type <node_t> expression
+*/
+
+%type <node_t> program code_list main_function
+
+
 
 /* *** *** section des actions *** *** */
 
@@ -84,12 +142,20 @@ SymbolsTable symbolsTable;
 /* program structure */
 
 program
-    : HTPL_BEGIN code_list main_function HTPL_END
+    : HTPL_BEGIN code_list main_function HTPL_END {
+        $$ = createNode(&syntaxTree, "program");
+        syntaxTree.root = $$;
+        addChildren($$, 2, $2, $3);
+    }
 ;
 
 code_list
-    : code_list code
-    | %empty
+    : code_list code {
+        $$ = createNode(&syntaxTree, "code_list");
+    }
+    | %empty {
+        $$ = createNode(&syntaxTree, "code_list");
+    }
 ;
 
 code
@@ -107,6 +173,8 @@ main_function
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
         createAttribute(&symbol->attributes, "entry", "true");
+
+        $$ = createNode(&syntaxTree, "main_function");
     }
 ;
 
@@ -142,12 +210,13 @@ function_body
 ;
 
 function_call
-    : FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS
+    : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS
+    | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS
 ;
 
 argument_list
-    : argument_list COMMA variable
-    | variable
+    : argument_list COMMA expression
+    | expression
 ;
 
 
@@ -349,7 +418,7 @@ expression
 
 /* *** *** section de code *** *** */
 
-int yyerror(const char *error_message) {
+void yyerror(const char *error_message) {
     printf("File \"%s\", line %d, character %d: %s\n", filename, yylineno, column_counter, error_message);
 }
 
@@ -368,6 +437,7 @@ int main(int argc, char* argv[]) {
 
     yyset_in(file);
 
+    initializeSyntaxTree(&syntaxTree);
     initializeSymbolsTable(&symbolsTable);
 
     int result = yyparse();
@@ -375,9 +445,12 @@ int main(int argc, char* argv[]) {
     fclose(file);
 
     printf("\n");
+    printSyntaxTree(&syntaxTree);
+    printf("\n");
     printSymbolsTable(&symbolsTable);
     printf("\n");
 
+    deleteSyntaxTree(&syntaxTree);
     deleteSymbolsTable(&symbolsTable);
 
     if (result == 0) {
