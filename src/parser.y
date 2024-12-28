@@ -43,7 +43,7 @@ extern SymbolsTable symbolsTable;
 %token IDENTIFIER
 
 %nonassoc EQUAL NOT_EQUAL LESS LESS_OR_EQUAL GREATER GREATER_OR_EQUAL
-%nonassoc ASSIGN
+%nonassoc ASSIGN 
 
 %left OR
 %left AND
@@ -60,9 +60,7 @@ extern SymbolsTable symbolsTable;
 
 program: HTPL_BEGIN code HTPL_END;
 
-code: main
-    | declarations main
-    ;
+code: declarations main;
 
 declarations: declaration declarations
     | %empty
