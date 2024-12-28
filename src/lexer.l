@@ -9,13 +9,12 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "parser.tab.h"
-#include "symbols_table.h"
+#include "parser.h"
 
 
-char *filename; // the file to compile
-int column_counter = 1;  // custom column counter
-SymbolsTable symbolsTable; // global variable for the symbols table
+extern char *filename;
+
+int column_counter = 1;
 
 %}
 
@@ -24,7 +23,6 @@ SymbolsTable symbolsTable; // global variable for the symbols table
 /* *** *** les options de flex *** *** */
 
 %option noyywrap
-%option yylineno
 
 
 
@@ -48,24 +46,17 @@ ID          [a-zA-Z][a-zA-Z0-9]*
  /* Fonctions */
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_BEGIN; }
 "</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_END; }
-"main" {
+"main"              {
     printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
     column_counter += yyleng;
-
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "function");
-    createAttribute(&symbol->attributes, "entry", "true");
-
+    yylval.string_t = strdup(yytext);
     return MAIN;
 }
 
-_[0-9]*{ID} {
+_{ID}               {
     printf("TOKEN: FUNCTION_NAME(%s) (ligne: %d)\n", yytext, yylineno);
     column_counter += yyleng;
-
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "function");
-
+    yylval.string_t = strdup(yytext);
     return FUNCTION_NAME;
 }
 
@@ -85,8 +76,19 @@ _[0-9]*{ID} {
 "void"              { printf("TOKEN: VOID (ligne: %d)\n", yylineno); column_counter += yyleng; return VOID; }
 
  /* Littéraux */
-{DIGIT}+            { printf("TOKEN: INTEGER_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return INTEGER_LITERAL; }
-{DIGIT}+"."{DIGIT}+ { printf("TOKEN: FLOAT_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return FLOAT_LITERAL; }
+{DIGIT}+            {
+    printf("TOKEN: INTEGER_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.int_t = atoi(yytext);
+    return INTEGER_LITERAL;
+}
+
+{DIGIT}+"."{DIGIT}+ {
+    printf("TOKEN: FLOAT_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.float_t = atof(yytext);
+    return FLOAT_LITERAL;
+}
 
  /* traietement d'une chaine de caractere */
 \"([^\"\\]|\\.)*\" {
@@ -118,11 +120,23 @@ _[0-9]*{ID} {
     processed[j] = '\0'; // terminaison de la chaîne
     printf("TOKEN: STRING_LITERAL(%s) (ligne: %d)\n", processed, yylineno);
     column_counter += yyleng;
+    yylval.string_t = strdup(processed);
     return STRING_LITERAL;
 }
 
-"true"|"false"      { printf("TOKEN: BOOLEAN_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return BOOLEAN_LITERAL; }
-'.'                 { printf("TOKEN: CHAR_LITERAL(%s) (ligne: %d)\n", yytext, yylineno); column_counter += yyleng; return CHAR_LITERAL; }
+"true"|"false"      {
+    printf("TOKEN: BOOLEAN_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.boolean_t = (strcmp(yytext, "true") == 0);
+    return BOOLEAN_LITERAL;
+}
+
+'.'                 {
+    printf("TOKEN: CHAR_LITERAL(%s) (ligne: %d)\n", yytext, yylineno);
+    column_counter += yyleng;
+    yylval.char_t = yytext[0];
+    return CHAR_LITERAL;
+}
 
  /* Tableaux */
 "["                 { printf("TOKEN: LEFT_BRACKET (ligne: %d)\n", yylineno); column_counter += yyleng; return LEFT_BRACKET; }
@@ -171,18 +185,14 @@ _[0-9]*{ID} {
 "#"[^\n]*           ; /* ignorer les commentaires */
 
  /* Identifiants */
-{ID} {
+{ID}                {
     printf("TOKEN: IDENTIFIER(%s) (ligne: %d)\n", yytext, yylineno);
     column_counter += yyleng;
-
-    Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, yytext);
-    createAttribute(&symbol->attributes, "category", "unknown");
-
+    yylval.string_t = strdup(yytext);
     return IDENTIFIER;
 }
 
  /* Gestion des erreurs */
-.                   { printf("File \"%s\", line %d, character %d: Lexical Error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
+.                   { printf("File \"%s\", line %d, character %d: lexical error, unknown character '%s'\n", filename, yylineno, column_counter, yytext); return YYUNDEF; }
 
 %%
-
