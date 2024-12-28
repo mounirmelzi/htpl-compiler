@@ -147,30 +147,26 @@ program
 
 code_list
     : code_list code {
-        $$ = createNode(&syntaxTree, "code_list");
-        addChildren($$, 2, $1, $2);
+        $$ = $1 ? $1 : createNode(&syntaxTree, "code_list");
+        addChildren($$, 1, $2);
     }
     | %empty {
-        $$ = createNode(&syntaxTree, "code_list");
+        $$ = NULL;
     }
 ;
 
 code
     : function_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | struct_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | variable_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | variable_initialisation {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
 ;
 
@@ -179,10 +175,6 @@ code
 
 main_function
     : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER function_body FUNCTION_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
-        createAttribute(&symbol->attributes, "entry", "true");
-
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $8);
     }
@@ -190,10 +182,6 @@ main_function
 
 function_definition
     : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER function_body FUNCTION_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
-        createAttribute(&symbol->attributes, "entry", "false");
-
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 2, $3, $5);
     }
@@ -212,8 +200,8 @@ function_signature
 
 parameter_list
     : parameter_list COMMA parameter {
-        $$ = createNode(&syntaxTree, "parameter_list");
-        addChildren($$, 2, $1, $3);
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | parameter {
         $$ = createNode(&syntaxTree, "parameter_list");
@@ -240,8 +228,7 @@ return_type
 
 function_body
     : statement_list {
-        $$ = createNode(&syntaxTree, "function_body");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
 ;
 
@@ -257,8 +244,8 @@ function_call
 
 argument_list
     : argument_list COMMA expression {
-        $$ = createNode(&syntaxTree, "argument_list");
-        addChildren($$, 2, $1, $3);
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | expression {
         $$ = createNode(&syntaxTree, "argument_list");
@@ -271,9 +258,6 @@ argument_list
 
 struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "struct");
-
         $$ = createNode(&syntaxTree, "struct_definition");
         addChildren($$, 1, $4);
     }
@@ -281,8 +265,8 @@ struct_definition
 
 struct_body
     : struct_body field_definition {
-        $$ = createNode(&syntaxTree, "struct_body");
-        addChildren($$, 2, $1, $2);
+        $$ = $1;
+        addChildren($$, 1, $2);
     }
     | field_definition {
         $$ = createNode(&syntaxTree, "struct_body");
@@ -302,10 +286,6 @@ field_definition
 
 variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
-        createAttribute(&symbol->attributes, "is_initialised", "false");
-
         $$ = createNode(&syntaxTree, "variable_definition");
         addChildren($$, 1, $4);
     }
@@ -313,10 +293,6 @@ variable_definition
 
 variable_initialisation
     : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
-        createAttribute(&symbol->attributes, "is_initialised", "true");
-
         $$ = createNode(&syntaxTree, "variable_initialisation");
         addChildren($$, 2, $4, $6);
     }
@@ -324,16 +300,13 @@ variable_initialisation
 
 initialisation_expression
     : expression {
-        $$ = createNode(&syntaxTree, "initialisation_expression");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | array_literal {
-        $$ = createNode(&syntaxTree, "initialisation_expression");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | struct_literal {
-        $$ = createNode(&syntaxTree, "initialisation_expression");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
 ;
 
@@ -426,8 +399,8 @@ struct_literal
 
 struct_field_list
     : struct_field_list COMMA struct_field {
-        $$ = createNode(&syntaxTree, "struct_field_list");
-        addChildren($$, 2, $1, $3);
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | struct_field {
         $$ = createNode(&syntaxTree, "struct_field_list");
@@ -447,15 +420,14 @@ struct_field
 
 array_literal
     : LEFT_BRACKET array_values RIGHT_BRACKET {
-        $$ = createNode(&syntaxTree, "array_literal");
-        addChildren($$, 1, $2);
+        $$ = $2;
     }
 ;
 
 array_values
     : array_values COMMA expression {
-        $$ = createNode(&syntaxTree, "array_values");
-        addChildren($$, 2, $1, $3);
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | expression {
         $$ = createNode(&syntaxTree, "array_values");
@@ -468,8 +440,8 @@ array_values
 
 statement_list
     : statement_list statement {
-        $$ = createNode(&syntaxTree, "statement_list");
-        addChildren($$, 2, $1, $2);
+        $$ = $1;
+        addChildren($$, 1, $2);
     }
     | statement {
         $$ = createNode(&syntaxTree, "statement_list");
@@ -479,40 +451,31 @@ statement_list
 
 statement
     : variable_definition {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | variable_initialisation {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | write_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | read_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | assign_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | return_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | call_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | if_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | while_statement {
-        $$ = createNode(&syntaxTree, "statement");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
 ;
 
@@ -598,8 +561,7 @@ condition
         addChildren($$, 2, $1, $3);
     }
     | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 1, $2);
+        $$ = $2;
     }
     | condition AND condition {
         $$ = createNode(&syntaxTree, "condition");
@@ -617,20 +579,16 @@ condition
 
 calculation
     : literal {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | variable {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | function_call {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $2);
+        $$ = $2;
     }
     | calculation PLUS calculation {
         $$ = createNode(&syntaxTree, "calculation");
@@ -660,12 +618,10 @@ calculation
 
 expression
     : calculation {
-        $$ = createNode(&syntaxTree, "expression");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | condition {
-        $$ = createNode(&syntaxTree, "expression");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
 ;
 
