@@ -12,76 +12,26 @@
 #include "lexer.h"
 #include "symbols_table.h"
 
-#define MAX_TERMINALS 20
-#define MAX_NON_TERMINALS 10
-
+// Global variables
+int lookahead; // Current token for lookahead
 int yyerror(const char *);
-
+int yyerror(const char *);
+void calculation();
+void calculation_tail();
+void primary();
 
 extern int column_counter;
 
 char *filename;
 SymbolsTable symbolsTable;
 
-
-
-
-// Function declaration for handling Début and Suivant sets
-void initializeSets(int index, char *symbol, char **debut, int debut_size, char **suivant, int suivant_size);
-
-// Structure for storing Début and Suivant sets for each non-terminal
-typedef struct {
-    char *symbol;
-    char **debut_set;
-    int debut_size;
-    char **suivant_set;
-    int suivant_size;
-} NonTerminalSets;
-
-NonTerminalSets sets[3]; 
-
-// Sample data for Début and Suivant sets
-char* debut_calculation[] = {"INTEGER_LITERAL","FLOAT_LITERAL","IDENTIFIER", "FUNCTION_NAME", "LEFT_PARENTHESIS", "MINUS"};
-int debut_calculation_size = 6;
-
-char* suivant_calculation[] = {"EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_calculation_size = 9;
-
-char* debut_calculation_tail[] = {"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "ε"};
-int debut_calculation_tail_size = 6;
-
-char* suivant_calculation_tail[] = {"EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_calculation_tail_size = 9;
-
-char* debut_primary[] = {"INTEGER_LITERAL","FLOAT_LITERAL", "IDENTIFIER", "FUNCTION_NAME", "LEFT_PARENTHESIS", "MINUS"};
-int debut_primary_size = 6;
-
-char* suivant_primary[] = {"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_primary_size = 14;
-
-// Initialize the sets for the non-terminals
-void initializeSets(int index, char *symbol, char **debut, int debut_size, char **suivant, int suivant_size) {
-    sets[index].symbol = symbol;
-    sets[index].debut_set = debut;
-    sets[index].debut_size = debut_size;
-    sets[index].suivant_set = suivant;
-    sets[index].suivant_size = suivant_size;
-}
-
-
-char* non_terminals[] = { "calculation","calculation_tail", "primary"};
-int non_terminal_count = sizeof(non_terminals) / sizeof(non_terminals[0]);
-
-char* terminals[] = {"INTEGER_LITERAL","FLOAT_LITERAL","IDENTIFIER", "FUNCTION_NAME",  "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA","LEFT_PARENTHESIS"};
-int terminal_count = sizeof(terminals) / sizeof(terminals[0]);
-
 %}
-
 
 
 %define lr.type lalr
 %define parse.lac full
 %define parse.error detailed
+
 
 %union {
     int int_t;
@@ -279,12 +229,11 @@ variable
 ;
 
 literal
-    : INTEGER_LITERAL
-    | FLOAT_LITERAL
-    | BOOLEAN_LITERAL
+    : BOOLEAN_LITERAL
     | CHAR_LITERAL
     | STRING_LITERAL
 ;
+
 
 
 /* struct literals */
@@ -323,7 +272,8 @@ statement_list
 ;
 
 statement
-    : variable_definition
+    : calculation SEMICOLON
+    | variable_definition
     | variable_initialisation
     | write_statement
     | read_statement
@@ -394,17 +344,17 @@ calculation
 ;
 */
 /* ********************************   */
-
+/*
 calculation
-    : primary calculation_tail
+    : primary calculation_tail  
 ;
 
 calculation_tail
-    : PLUS primary calculation_tail
-    | MINUS primary calculation_tail
-    | MULTIPLY primary calculation_tail
-    | DIVIDE primary calculation_tail
-    | MODULO primary calculation_tail
+    : PLUS primary calculation_tail 
+    | MINUS primary calculation_tail 
+    | MULTIPLY primary calculation_tail 
+    | DIVIDE primary calculation_tail 
+    | MODULO primary calculation_tail 
     | %empty
 ;
 
@@ -414,6 +364,13 @@ primary
     | function_call
     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS
     | MINUS primary %prec NEG
+;*/
+calculation
+    :literal
+    | error {
+        printf("Switching to recursive descent parser...\n");
+        calculation(); // Delegate to recursive parser
+    }
 ;
 
 expression
@@ -424,89 +381,94 @@ expression
 %%
 
 
+/* *** *** Recursive Descent Parser Implementation *** *** */
+// Retrieve the next token from the lexer
+int nextToken() {
+    int token = yylex();
+    printf("Lookahead token: %d\n", token);  // Print token value
+    return token;
+}
+// Error handler
+void error(const char *message) {
+    fprintf(stderr, "Error: %s\n", message);
+    exit(1);
+}
+
+// Match and consume the expected token
+void match(int expectedToken) {
+    printf("Matching token: %d (expected: %d)\n", lookahead, expectedToken);
+    if (lookahead == expectedToken) {
+        lookahead = nextToken(); // Advance to the next token
+    } else {
+        error("Token mismatch");
+    }
+}
+
+// Recursive procedure for calculation
+void calculation() {
+    primary(); 
+    calculation_tail(); 
+}
+
+// Recursive procedure for calculation_tail
+void calculation_tail() {
+    if (lookahead == PLUS) {
+        match(PLUS);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MINUS) {
+        match(MINUS);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MULTIPLY) {
+        match(MULTIPLY);
+        primary();
+        calculation_tail();
+    } else if (lookahead == DIVIDE) {
+        match(DIVIDE);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MODULO) {
+        match(MODULO);
+        primary();
+        calculation_tail();
+    } else {
+        // ε (empty production), do nothing
+    }
+}
+
+void primary() {
+
+    if (lookahead == INTEGER_LITERAL || lookahead == FLOAT_LITERAL)
+     {
+        match(lookahead); 
+    } else if (lookahead == IDENTIFIER) {
+        match(IDENTIFIER);
+    } else if (lookahead == FUNCTION_NAME) {
+        match(FUNCTION_NAME);
+        match(LEFT_PARENTHESIS);
+        if (lookahead != RIGHT_PARENTHESIS) {
+            calculation(); 
+        }
+        match(RIGHT_PARENTHESIS);
+    } else if (lookahead == LEFT_PARENTHESIS) {
+        match(LEFT_PARENTHESIS);
+        calculation();
+        match(RIGHT_PARENTHESIS);
+    } else if (lookahead == MINUS) {
+        match(MINUS);
+        primary();
+    } else {
+        error("Unexpected token in primary");
+    }
+}
+
 
 /* *** *** section de code *** *** */
 
 int yyerror(const char *error_message) {
     printf("File \"%s\", line %d, character %d: %s\n", filename, yylineno, column_counter, error_message);
 }
-
-
-char *LL1_table[MAX_NON_TERMINALS][MAX_TERMINALS];
-
-bool isTerminal(const char *symbol) {
-    for (int i = 0; i < terminal_count; i++) {
-        if (strcmp(symbol, terminals[i]) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Function to print the LL(1) table
-void printLL1Table() {
-    printf("LL(1) Table:\n");
-    for (int i = 0; i < non_terminal_count; i++) {
-        for (int j = 0; j < terminal_count; j++) {
-            if (LL1_table[i][j] != NULL) {
-                printf("%s (%s) -> %s\n", sets[i].symbol, terminals[j], LL1_table[i][j]);
-            }
-        }
-    }
-}
-
-
-// Add production to the LL(1) table
-void addProductionToLL1Table(int non_terminal_index, int terminal_index, const char *production) {
-    if (LL1_table[non_terminal_index][terminal_index] == NULL) {
-        LL1_table[non_terminal_index][terminal_index] = strdup(production);
-    } else {
-        // Conflict: If a production already exists, handle the conflict (error or other actions)
-        printf("Conflict detected for non-terminal %s with terminal %s\n", sets[non_terminal_index].symbol, terminals[terminal_index]);
-        
-    }
-}
-
-void buildLL1Table() {
-    for (int i = 0; i < 3; i++) {
-        NonTerminalSets *nt_set = &sets[i];
-
-        // Iterate through the production rules for the non-terminal
-        for (int j = 0; j < nt_set->debut_size; j++) {
-            const char *first_symbol = nt_set->debut_set[j];
-
-            // If first_symbol is a terminal, add the production to the LL1 table
-            if (isTerminal(first_symbol)) {
-                for (int k = 0; k < terminal_count; k++) {
-                    if (strcmp(first_symbol, terminals[k]) == 0) {
-                        char production[100];
-                        snprintf(production, sizeof(production), "%s -> %s", nt_set->symbol, first_symbol);
-                        addProductionToLL1Table(i, k, production);
-                    }
-                }
-            } else {
-                // Handle non-terminal as a first symbol and look up its debut set
-                for (int k = 0; k < nt_set->debut_size; k++) {
-                    const char *next_symbol = nt_set->debut_set[k];
-                    if (!isTerminal(next_symbol)) {
-                        // Process for follow (ε case)
-                        for (int l = 0; l < nt_set->suivant_size; l++) {
-                            const char *follow_symbol = nt_set->suivant_set[l];
-                            for (int m = 0; m < terminal_count; m++) {
-                                if (strcmp(follow_symbol, terminals[m]) == 0) {
-                                    char production[100];
-                                    snprintf(production, sizeof(production), "%s -> ε", nt_set->symbol);
-                                    addProductionToLL1Table(i, m, production);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -523,38 +485,14 @@ int main(int argc, char* argv[]) {
 
     yyset_in(file);
 
-    initializeSets(0, "calculation", debut_calculation, debut_calculation_size, suivant_calculation, suivant_calculation_size);
-    initializeSets(1, "calculation_tail", debut_calculation_tail, debut_calculation_tail_size, suivant_calculation_tail, suivant_calculation_tail_size);
-    initializeSets(2, "primary", debut_primary, debut_primary_size, suivant_primary, suivant_primary_size);
-
     initializeSymbolsTable(&symbolsTable);
+    // Initialize lookahead with the first token from the lexer
+    // lookahead = yylex();
+    // printf("Lookahead token: %d\n", lookahead);
+// calculation();  
 
-    int result = yyparse();
-
+    int result = yyparse(); // Start the parsing process
     fclose(file);
-    printf("\n");
-
-        for (int i = 0; i < 3; i++) {
-        printf("Non-terminal: %s\n", sets[i].symbol);
-        
-        // Print Début set
-        printf("  Début set: ");
-        for (int j = 0; j < sets[i].debut_size; j++) {
-            printf("%s ", sets[i].debut_set[j]);
-        }
-        printf("\n");
-
-        // Print Suivant set
-        printf("  Suivant set: ");
-        for (int j = 0; j < sets[i].suivant_size; j++) {
-            printf("%s ", sets[i].suivant_set[j]);
-        }
-        printf("\n\n");
-    }
-
-
-    buildLL1Table();
-    printLL1Table();
 
     printf("\n");
     printSymbolsTable(&symbolsTable);

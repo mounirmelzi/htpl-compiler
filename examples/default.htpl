@@ -1,5 +1,5 @@
 <HTPL>
     <function main(): void>
-        write("hello world");
+       2+5;
     </function>
 </HTPL>
