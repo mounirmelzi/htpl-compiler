@@ -1,5 +1,1 @@
-<HTPL>
-    <function main(): void>
-       2+5;
-    </function>
-</HTPL>
+1 + 2 -2 *( 1 + 2);

@@ -11,77 +11,28 @@
 
 #include "lexer.h"
 #include "symbols_table.h"
+#include "syntax_tree.h"
 
-#define MAX_TERMINALS 20
-#define MAX_NON_TERMINALS 10
 
-int yyerror(const char *);
-
+void yyerror(const char *);
+void calculation();
+void calculation_tail();
+void primary();
+int lookahead;
 
 extern int column_counter;
 
 char *filename;
 SymbolsTable symbolsTable;
-
-
-
-
-// Function declaration for handling Début and Suivant sets
-void initializeSets(int index, char *symbol, char **debut, int debut_size, char **suivant, int suivant_size);
-
-// Structure for storing Début and Suivant sets for each non-terminal
-typedef struct {
-    char *symbol;
-    char **debut_set;
-    int debut_size;
-    char **suivant_set;
-    int suivant_size;
-} NonTerminalSets;
-
-NonTerminalSets sets[3]; 
-
-// Sample data for Début and Suivant sets
-char* debut_calculation[] = {"INTEGER_LITERAL","FLOAT_LITERAL","IDENTIFIER", "FUNCTION_NAME", "LEFT_PARENTHESIS", "MINUS"};
-int debut_calculation_size = 6;
-
-char* suivant_calculation[] = {"EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_calculation_size = 9;
-
-char* debut_calculation_tail[] = {"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "ε"};
-int debut_calculation_tail_size = 6;
-
-char* suivant_calculation_tail[] = {"EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_calculation_tail_size = 9;
-
-char* debut_primary[] = {"INTEGER_LITERAL","FLOAT_LITERAL", "IDENTIFIER", "FUNCTION_NAME", "LEFT_PARENTHESIS", "MINUS"};
-int debut_primary_size = 6;
-
-char* suivant_primary[] = {"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA"};
-int suivant_primary_size = 14;
-
-// Initialize the sets for the non-terminals
-void initializeSets(int index, char *symbol, char **debut, int debut_size, char **suivant, int suivant_size) {
-    sets[index].symbol = symbol;
-    sets[index].debut_set = debut;
-    sets[index].debut_size = debut_size;
-    sets[index].suivant_set = suivant;
-    sets[index].suivant_size = suivant_size;
-}
-
-
-char* non_terminals[] = { "calculation","calculation_tail", "primary"};
-int non_terminal_count = sizeof(non_terminals) / sizeof(non_terminals[0]);
-
-char* terminals[] = {"INTEGER_LITERAL","FLOAT_LITERAL","IDENTIFIER", "FUNCTION_NAME",  "PLUS", "MINUS", "MULTIPLY", "DIVIDE", "MODULO", "EQUAL", "NOT_EQUAL", "LESS", "LESS_OR_EQUAL", "GREATER", "GREATER_OR_EQUAL", "RIGHT_PARENTHESIS", "SEMICOLON", "COMMA","LEFT_PARENTHESIS"};
-int terminal_count = sizeof(terminals) / sizeof(terminals[0]);
+SyntaxTree syntaxTree;
 
 %}
-
 
 
 %define lr.type lalr
 %define parse.lac full
 %define parse.error detailed
+
 
 %union {
     int int_t;
@@ -89,6 +40,7 @@ int terminal_count = sizeof(terminals) / sizeof(terminals[0]);
     bool boolean_t;
     char char_t;
     char *string_t;
+    void *node_t;
 }
 
 
@@ -128,6 +80,59 @@ int terminal_count = sizeof(terminals) / sizeof(terminals[0]);
 %right NOT
 
 
+%type <node_t> program
+%type <node_t> code_list
+%type <node_t> code
+
+%type <node_t> main_function
+%type <node_t> function_definition
+%type <node_t> function_signature
+%type <node_t> parameter_list
+%type <node_t> parameter
+%type <node_t> return_type
+%type <node_t> function_body
+%type <node_t> function_call
+%type <node_t> argument_list
+
+%type <node_t> struct_definition
+%type <node_t> struct_body
+%type <node_t> field_definition
+
+%type <node_t> variable_definition
+%type <node_t> variable_initialisation
+%type <node_t> initialisation_expression
+
+%type <node_t> type
+%type <node_t> struct_type
+%type <node_t> array_type
+
+%type <node_t> variable
+%type <node_t> literal
+
+%type <node_t> struct_literal
+%type <node_t> struct_field_list
+%type <node_t> struct_field
+
+%type <node_t> array_literal
+%type <node_t> array_values
+
+%type <node_t> statement_list
+%type <node_t> statement
+%type <node_t> write_statement
+%type <node_t> read_statement
+%type <node_t> assign_statement
+%type <node_t> return_statement
+%type <node_t> call_statement
+%type <node_t> if_statement
+%type <node_t> while_statement
+
+%type <node_t> condition
+%type <node_t> calculation
+%type <node_t> calculation_tail
+%type <node_t> primary
+%type <node_t> expression
+
+
 
 /* *** *** section des actions *** *** */
 
@@ -138,19 +143,40 @@ int terminal_count = sizeof(terminals) / sizeof(terminals[0]);
 /* program structure */
 
 program
-    : HTPL_BEGIN code_list main_function HTPL_END
+    : HTPL_BEGIN code_list main_function HTPL_END {
+        $$ = createNode(&syntaxTree, "program");
+        syntaxTree.root = $$;
+        addChildren($$, 2, $2, $3);
+    }
 ;
 
 code_list
-    : code_list code
-    | %empty
+    : code_list code {
+        $$ = createNode(&syntaxTree, "code_list");
+        addChildren($$, 2, $1, $2);
+    }
+    | %empty {
+        $$ = createNode(&syntaxTree, "code_list");
+    }
 ;
 
 code
-    : function_definition
-    | struct_definition
-    | variable_definition
-    | variable_initialisation
+    : function_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | struct_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | variable_definition {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
+    | variable_initialisation {
+        $$ = createNode(&syntaxTree, "code");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
@@ -161,6 +187,9 @@ main_function
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
         createAttribute(&symbol->attributes, "entry", "true");
+
+        $$ = createNode(&syntaxTree, "main_function");
+        addChildren($$, 1, $8);
     }
 ;
 
@@ -169,39 +198,77 @@ function_definition
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
         createAttribute(&symbol->attributes, "entry", "false");
+
+        $$ = createNode(&syntaxTree, "function_definition");
+        addChildren($$, 2, $3, $5);
     }
 ;
 
 function_signature
-    : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type
-    | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type
+    : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type {
+        $$ = createNode(&syntaxTree, "function_signature");
+        addChildren($$, 1, $4);
+    }
+    | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type {
+        $$ = createNode(&syntaxTree, "function_signature");
+        addChildren($$, 2, $2, $5);
+    }
 ;
 
 parameter_list
-    : parameter_list COMMA parameter
-    | parameter
+    : parameter_list COMMA parameter {
+        $$ = createNode(&syntaxTree, "parameter_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | parameter {
+        $$ = createNode(&syntaxTree, "parameter_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 parameter
-    : IDENTIFIER COLON type
+    : IDENTIFIER COLON type {
+        $$ = createNode(&syntaxTree, "parameter");
+        addChildren($$, 1, $3);
+    }
 ;
 
 return_type
-    : type
-    | VOID
+    : type {
+        $$ = createNode(&syntaxTree, "return_type");
+        addChildren($$, 1, $1);
+    }
+    | VOID {
+        $$ = createNode(&syntaxTree, "return_type");
+    }
 ;
 
 function_body
-    : statement_list
+    : statement_list {
+        $$ = createNode(&syntaxTree, "function_body");
+        addChildren($$, 1, $1);
+    }
 ;
 
 function_call
-    : FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS
+    : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+    }
+    | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+        addChildren($$, 1, $3);
+    }
 ;
 
 argument_list
-    : argument_list COMMA variable
-    | variable
+    : argument_list COMMA expression {
+        $$ = createNode(&syntaxTree, "argument_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | expression {
+        $$ = createNode(&syntaxTree, "argument_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
@@ -211,16 +278,28 @@ struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "struct");
+
+        $$ = createNode(&syntaxTree, "struct_definition");
+        addChildren($$, 1, $4);
     }
 ;
 
 struct_body
-    : struct_body field_definition
-    | field_definition
+    : struct_body field_definition {
+        $$ = createNode(&syntaxTree, "struct_body");
+        addChildren($$, 2, $1, $2);
+    }
+    | field_definition {
+        $$ = createNode(&syntaxTree, "struct_body");
+        addChildren($$, 1, $1);
+    }
 ;
 
 field_definition
-    : LET IDENTIFIER COLON type SEMICOLON
+    : LET IDENTIFIER COLON type SEMICOLON {
+        $$ = createNode(&syntaxTree, "field_definition");
+        addChildren($$, 1, $4);
+    }
 ;
 
 
@@ -231,6 +310,9 @@ variable_definition
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
         createAttribute(&symbol->attributes, "is_initialised", "false");
+
+        $$ = createNode(&syntaxTree, "variable_definition");
+        addChildren($$, 1, $4);
     }
 ;
 
@@ -239,274 +321,485 @@ variable_initialisation
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
         createAttribute(&symbol->attributes, "is_initialised", "true");
+
+        $$ = createNode(&syntaxTree, "variable_initialisation");
+        addChildren($$, 2, $4, $6);
     }
 ;
 
 initialisation_expression
-    : expression
-    | array_literal
-    | struct_literal
+    : expression {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
+    | array_literal {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
+    | struct_literal {
+        $$ = createNode(&syntaxTree, "initialisation_expression");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* type rules */
 
 type
-    : TYPE_INTEGER
-    | TYPE_FLOAT
-    | TYPE_BOOLEAN
-    | TYPE_CHAR
-    | TYPE_STRING
-    | struct_type
-    | array_type
+    : TYPE_INTEGER {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_FLOAT {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_BOOLEAN {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_CHAR {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | TYPE_STRING {
+        $$ = createNode(&syntaxTree, "type");
+    }
+    | struct_type {
+        $$ = createNode(&syntaxTree, "type");
+        addChildren($$, 1, $1);
+    }
+    | array_type {
+        $$ = createNode(&syntaxTree, "type");
+        addChildren($$, 1, $1);
+    }
 ;
 
 struct_type
-    : IDENTIFIER
+    : IDENTIFIER {
+        $$ = createNode(&syntaxTree, "struct_type");
+    }
 ;
 
 array_type
-    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET
+    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "array_type");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* variable access rules */
 
 variable
-    : variable DOT IDENTIFIER
-    | variable LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET
-    | IDENTIFIER
+    : variable DOT IDENTIFIER {
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
+    }
+    | variable LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
+    }
+    | IDENTIFIER {
+        $$ = createNode(&syntaxTree, "variable");
+    }
 ;
 
 literal
-    : INTEGER_LITERAL
-    | FLOAT_LITERAL
-    | BOOLEAN_LITERAL
-    | CHAR_LITERAL
-    | STRING_LITERAL
+    : INTEGER_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | FLOAT_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | BOOLEAN_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | CHAR_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
+    | STRING_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+    }
 ;
 
 
 /* struct literals */
 
 struct_literal
-    : LEFT_BRACE struct_field_list RIGHT_BRACE
+    : LEFT_BRACE struct_field_list RIGHT_BRACE {
+        $$ = createNode(&syntaxTree, "struct_literal");
+        addChildren($$, 1, $2);
+    }
 ;
 
 struct_field_list
-    : struct_field_list COMMA struct_field
-    | struct_field
+    : struct_field_list COMMA struct_field {
+        $$ = createNode(&syntaxTree, "struct_field_list");
+        addChildren($$, 2, $1, $3);
+    }
+    | struct_field {
+        $$ = createNode(&syntaxTree, "struct_field_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 struct_field
-    : IDENTIFIER ASSIGN expression
+    : IDENTIFIER ASSIGN expression {
+        $$ = createNode(&syntaxTree, "struct_field");
+        addChildren($$, 1, $3);
+    }
 ;
 
 
 /* array literals */
 
 array_literal
-    : LEFT_BRACKET array_values RIGHT_BRACKET
+    : LEFT_BRACKET array_values RIGHT_BRACKET {
+        $$ = createNode(&syntaxTree, "array_literal");
+        addChildren($$, 1, $2);
+    }
 ;
 
 array_values
-    : array_values COMMA expression
-    | expression
+    : array_values COMMA expression {
+        $$ = createNode(&syntaxTree, "array_values");
+        addChildren($$, 2, $1, $3);
+    }
+    | expression {
+        $$ = createNode(&syntaxTree, "array_values");
+        addChildren($$, 1, $1);
+    }
 ;
 
 
 /* statement rules */
 
 statement_list
-    : statement_list statement
-    | statement
+    : statement_list statement {
+        $$ = createNode(&syntaxTree, "statement_list");
+        addChildren($$, 2, $1, $2);
+    }
+    | statement {
+        $$ = createNode(&syntaxTree, "statement_list");
+        addChildren($$, 1, $1);
+    }
 ;
 
 statement
-    : variable_definition
-    | variable_initialisation
-    | write_statement
-    | read_statement
-    | assign_statement
-    | return_statement
-    | call_statement
-    | if_statement
-    | while_statement
+    : variable_definition {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | variable_initialisation {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | write_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | read_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | assign_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | return_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | call_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | if_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
+    | while_statement {
+        $$ = createNode(&syntaxTree, "statement");
+        addChildren($$, 1, $1);
+    }
 ;
 
 write_statement
-    : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON
+    : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON {
+        $$ = createNode(&syntaxTree, "write_statement");
+        addChildren($$, 1, $3);
+    }
 ;
 
 read_statement
-    : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON
+    : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON {
+        $$ = createNode(&syntaxTree, "read_statement");
+        addChildren($$, 1, $3);
+    }
 ;
 
 assign_statement
-    : variable ASSIGN expression SEMICOLON
+    : variable ASSIGN expression SEMICOLON {
+        $$ = createNode(&syntaxTree, "assign_statement");
+        addChildren($$, 2, $1, $3);
+    }
 ;
 
 return_statement
-    : RETURN expression SEMICOLON
+    : RETURN expression SEMICOLON {
+        $$ = createNode(&syntaxTree, "return_statement");
+        addChildren($$, 1, $2);
+    }
 ;
 
 call_statement
-    : function_call SEMICOLON
+    : function_call SEMICOLON {
+        $$ = createNode(&syntaxTree, "call_statement");
+        addChildren($$, 1, $1);
+    }
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 2, $3, $6);
+    }
+    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 3, $3, $6, $8);
+    }
 ;
 
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END
+    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END {
+        $$ = createNode(&syntaxTree, "while_statement");
+        addChildren($$, 2, $3, $6);
+    }
 ;
 
 
 /* expression rules */
 
 condition
-    : calculation EQUAL calculation
-    | calculation NOT_EQUAL calculation
-    | calculation LESS calculation
-    | calculation LESS_OR_EQUAL calculation
-    | calculation GREATER calculation
-    | calculation GREATER_OR_EQUAL calculation
-    | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS
-    | condition AND condition
-    | condition OR condition
-    | NOT condition
+    : calculation EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation NOT_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation LESS calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation LESS_OR_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation GREATER calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation GREATER_OR_EQUAL calculation {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 1, $2);
+    }
+    | condition AND condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | condition OR condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
+    }
+    | NOT condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 1, $2);
+    }
 ;
-/* ********************************   */
-/*
-calculation
-    : literal
-    | variable
-    | function_call
-    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS
-    | calculation PLUS calculation
-    | calculation MINUS calculation
-    | calculation MULTIPLY calculation
-    | calculation DIVIDE calculation
-    | calculation MODULO calculation
-    | MINUS calculation %prec NEG
-;
-*/
-/* ********************************   */
+
+// calculation
+//     : literal {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 1, $1);
+//     }
+//     | variable {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 1, $1);
+//     }
+//     | function_call {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 1, $1);
+//     }
+//     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 1, $2);
+//     }
+//     | calculation PLUS calculation {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 2, $1, $3);
+//     }
+//     | calculation MINUS calculation {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 2, $1, $3);
+//     }
+//     | calculation MULTIPLY calculation {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 2, $1, $3);
+//     }
+//     | calculation DIVIDE calculation {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 2, $1, $3);
+//     }
+//     | calculation MODULO calculation {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 2, $1, $3);
+//     }
+//     | MINUS calculation %prec NEG {
+//         $$ = createNode(&syntaxTree, "calculation");
+//         addChildren($$, 1, $2);
+//     }
+// ;
+
+/* arithmetic grammar */
 
 calculation
-    : primary calculation_tail
+    : primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $2);
+    }
 ;
 
 calculation_tail
-    : PLUS primary calculation_tail
-    | MINUS primary calculation_tail
-    | MULTIPLY primary calculation_tail
-    | DIVIDE primary calculation_tail
-    | MODULO primary calculation_tail
-    | %empty
+    : PLUS primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+        addChildren($$, 2, $2, $3);
+    }
+    | MINUS primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+        addChildren($$, 2, $2, $3);
+    }
+    | MULTIPLY primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+        addChildren($$, 2, $2, $3);
+    }
+    | DIVIDE primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+        addChildren($$, 2, $2, $3);
+    }
+    | MODULO primary calculation_tail {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+        addChildren($$, 2, $2, $3);
+    }
+    | %empty {
+        $$ = createNode(&syntaxTree, "calculation_tail");
+    }
 ;
 
 primary
-    : literal
-    | variable
-    | function_call
-    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS
-    | MINUS primary %prec NEG
+    : literal {
+        $$ = createNode(&syntaxTree, "primary");
+        addChildren($$, 1, $1);
+    }
+    | variable {
+        $$ = createNode(&syntaxTree, "primary");
+        addChildren($$, 1, $1);
+    }
+    | function_call {
+        $$ = createNode(&syntaxTree, "primary");
+        addChildren($$, 1, $1);
+    }
+    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "primary");
+        addChildren($$, 1, $2);
+    }
+    | MINUS primary %prec NEG {
+        $$ = createNode(&syntaxTree, "primary");
+        addChildren($$, 1, $2);
+    }
 ;
 
 expression
-    : calculation
-    | condition
+    : calculation {
+        $$ = createNode(&syntaxTree, "expression");
+        addChildren($$, 1, $1);
+    }
+    | condition {
+        $$ = createNode(&syntaxTree, "expression");
+        addChildren($$, 1, $1);
+    }
 ;
 
 %%
+/* Match helper function */
+void match(int expectedToken) {
+    if (lookahead == expectedToken) {
+        lookahead = yylex();
+    } else {
+        fprintf(stderr, "Syntax error: Expected %d, found %d\n", expectedToken, lookahead);
+        exit(1);
+    }
+}
+
+/* Recursive Descent Parser Implementation */
+
+void calculation() {
+    primary();
+    calculation_tail();
+}
+
+void calculation_tail() {
+    if (lookahead == PLUS) {
+        match(PLUS);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MINUS) {
+        match(MINUS);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MULTIPLY) {
+        match(MULTIPLY);
+        primary();
+        calculation_tail();
+    } else if (lookahead == DIVIDE) {
+        match(DIVIDE);
+        primary();
+        calculation_tail();
+    } else if (lookahead == MODULO) {
+        match(MODULO);
+        primary();
+        calculation_tail();
+    } else {
+        // ε (empty production), do nothing
+    }
+}
+
+void primary() {
+    if (lookahead == INTEGER_LITERAL || lookahead == FLOAT_LITERAL) {
+        match(lookahead);
+    } else if (lookahead == IDENTIFIER) {
+        match(IDENTIFIER);
+    } else if (lookahead == LEFT_PARENTHESIS) {
+        match(LEFT_PARENTHESIS);
+        calculation();
+        match(RIGHT_PARENTHESIS);
+    } else if (lookahead == MINUS) {
+        match(MINUS);
+        primary();
+    } else {
+        yyerror("Unexpected token in primary expression");
+    }
+}
 
 
 
 /* *** *** section de code *** *** */
 
-int yyerror(const char *error_message) {
+void yyerror(const char *error_message) {
     printf("File \"%s\", line %d, character %d: %s\n", filename, yylineno, column_counter, error_message);
 }
-
-
-char *LL1_table[MAX_NON_TERMINALS][MAX_TERMINALS];
-
-bool isTerminal(const char *symbol) {
-    for (int i = 0; i < terminal_count; i++) {
-        if (strcmp(symbol, terminals[i]) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Function to print the LL(1) table
-void printLL1Table() {
-    printf("LL(1) Table:\n");
-    for (int i = 0; i < non_terminal_count; i++) {
-        for (int j = 0; j < terminal_count; j++) {
-            if (LL1_table[i][j] != NULL) {
-                printf("%s (%s) -> %s\n", sets[i].symbol, terminals[j], LL1_table[i][j]);
-            }
-        }
-    }
-}
-
-
-// Add production to the LL(1) table
-void addProductionToLL1Table(int non_terminal_index, int terminal_index, const char *production) {
-    if (LL1_table[non_terminal_index][terminal_index] == NULL) {
-        LL1_table[non_terminal_index][terminal_index] = strdup(production);
-    } else {
-        // Conflict: If a production already exists, handle the conflict (error or other actions)
-        printf("Conflict detected for non-terminal %s with terminal %s\n", sets[non_terminal_index].symbol, terminals[terminal_index]);
-        
-    }
-}
-
-void buildLL1Table() {
-    for (int i = 0; i < 3; i++) {
-        NonTerminalSets *nt_set = &sets[i];
-
-        // Iterate through the production rules for the non-terminal
-        for (int j = 0; j < nt_set->debut_size; j++) {
-            const char *first_symbol = nt_set->debut_set[j];
-
-            // If first_symbol is a terminal, add the production to the LL1 table
-            if (isTerminal(first_symbol)) {
-                for (int k = 0; k < terminal_count; k++) {
-                    if (strcmp(first_symbol, terminals[k]) == 0) {
-                        char production[100];
-                        snprintf(production, sizeof(production), "%s -> %s", nt_set->symbol, first_symbol);
-                        addProductionToLL1Table(i, k, production);
-                    }
-                }
-            } else {
-                // Handle non-terminal as a first symbol and look up its debut set
-                for (int k = 0; k < nt_set->debut_size; k++) {
-                    const char *next_symbol = nt_set->debut_set[k];
-                    if (!isTerminal(next_symbol)) {
-                        // Process for follow (ε case)
-                        for (int l = 0; l < nt_set->suivant_size; l++) {
-                            const char *follow_symbol = nt_set->suivant_set[l];
-                            for (int m = 0; m < terminal_count; m++) {
-                                if (strcmp(follow_symbol, terminals[m]) == 0) {
-                                    char production[100];
-                                    snprintf(production, sizeof(production), "%s -> ε", nt_set->symbol);
-                                    addProductionToLL1Table(i, m, production);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -522,53 +815,33 @@ int main(int argc, char* argv[]) {
     }
 
     yyset_in(file);
+   lookahead = yylex(); 
+ printf("Lookahead token: %d\n", lookahead);
+   calculation();  
 
-    initializeSets(0, "calculation", debut_calculation, debut_calculation_size, suivant_calculation, suivant_calculation_size);
-    initializeSets(1, "calculation_tail", debut_calculation_tail, debut_calculation_tail_size, suivant_calculation_tail, suivant_calculation_tail_size);
-    initializeSets(2, "primary", debut_primary, debut_primary_size, suivant_primary, suivant_primary_size);
+    // initializeSyntaxTree(&syntaxTree);
+    // initializeSymbolsTable(&symbolsTable);
 
-    initializeSymbolsTable(&symbolsTable);
+    // int result = yyparse();
 
-    int result = yyparse();
+    // fclose(file);
 
-    fclose(file);
-    printf("\n");
+    // printf("\n");
+    // printSyntaxTree(&syntaxTree);
+    // printf("\n");
+    // printSymbolsTable(&symbolsTable);
+    // printf("\n");
 
-        for (int i = 0; i < 3; i++) {
-        printf("Non-terminal: %s\n", sets[i].symbol);
-        
-        // Print Début set
-        printf("  Début set: ");
-        for (int j = 0; j < sets[i].debut_size; j++) {
-            printf("%s ", sets[i].debut_set[j]);
-        }
-        printf("\n");
+    // deleteSyntaxTree(&syntaxTree);
+    // deleteSymbolsTable(&symbolsTable);
 
-        // Print Suivant set
-        printf("  Suivant set: ");
-        for (int j = 0; j < sets[i].suivant_size; j++) {
-            printf("%s ", sets[i].suivant_set[j]);
-        }
-        printf("\n\n");
-    }
+    // if (result == 0) {
+    //     printf("Parsing completed successfully!\n");
+    // } else if (result == 1) {
+    //     printf("Parsing failed due to an error.\n");
+    // } else if (result == 2) {
+    //     printf("Parsing failed due to memory exhaustion.\n");
+    // }
 
-
-    buildLL1Table();
-    printLL1Table();
-
-    printf("\n");
-    printSymbolsTable(&symbolsTable);
-    printf("\n");
-
-    deleteSymbolsTable(&symbolsTable);
-
-    if (result == 0) {
-        printf("Parsing completed successfully!\n");
-    } else if (result == 1) {
-        printf("Parsing failed due to an error.\n");
-    } else if (result == 2) {
-        printf("Parsing failed due to memory exhaustion.\n");
-    }
-
-    return result;
+    // return result;
 }
