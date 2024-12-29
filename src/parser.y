@@ -87,7 +87,6 @@ SyntaxTree syntaxTree;
 %type <node_t> parameter_list
 %type <node_t> parameter
 %type <node_t> return_type
-%type <node_t> function_body
 %type <node_t> function_call
 %type <node_t> argument_list
 
@@ -174,16 +173,24 @@ code
 /* function rules */
 
 main_function
-    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER function_body FUNCTION_END {
+    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER statement_list FUNCTION_END {
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $8);
+
+        // todo 2 : create entry in the symbols table
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "function");
     }
 ;
 
 function_definition
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER function_body FUNCTION_END {
+    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER statement_list FUNCTION_END {
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 2, $3, $5);
+
+        // todo 4 : create entry in the symbols table
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "function");
     }
 ;
 
@@ -226,12 +233,6 @@ return_type
     }
 ;
 
-function_body
-    : statement_list {
-        $$ = $1;
-    }
-;
-
 function_call
     : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
         $$ = createNode(&syntaxTree, "function_call");
@@ -260,6 +261,10 @@ struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
         $$ = createNode(&syntaxTree, "struct_definition");
         addChildren($$, 1, $4);
+
+        // todo 3 : create entry in the symbols table
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "struct");
     }
 ;
 
@@ -288,6 +293,10 @@ variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_definition");
         addChildren($$, 1, $4);
+
+        // todo 1 : create entry in the symbols table
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "variable");
     }
 ;
 
@@ -295,6 +304,10 @@ variable_initialisation
     : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_initialisation");
         addChildren($$, 2, $4, $6);
+
+        // todo 5 : create entry in the symbols table
+        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        createAttribute(&symbol->attributes, "category", "variable");
     }
 ;
 
