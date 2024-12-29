@@ -107,13 +107,18 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
         return;
     }
 
-    printf("Symbols Table (%d symbols):\n", table->size);
+    printf("================================================================================================================\n");
+    printf("| %-20s | %-15s | %-10s | %-30s \n", "Name", "Type", "Category", "Details");
+    printf("================================================================================================================\n");
 
     SymbolNode *current = table->first;
     while (current != NULL)
     {
-        char category[1024];
-        switch (current->symbol.category)
+        Symbol *symbol = &current->symbol;
+
+        // Determine category
+        char category[32];
+        switch (symbol->category)
         {
         case VARIABLE:
             strcpy(category, "VARIABLE");
@@ -125,13 +130,56 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
             strcpy(category, "STRUCT");
             break;
         default:
-            strcpy(category, "UNKNOWN CATEGORY");
+            strcpy(category, "UNKNOWN");
             break;
         }
 
-        printf("- %s: %s (%s)\n", current->symbol.name, current->symbol.type, category);
+        // Print basic details
+        printf("| %-20s | %-15s | %-10s | ", symbol->name, symbol->type, category);
+
+        // Print additional details based on category
+        switch (symbol->category)
+        {
+        case VARIABLE:
+            printf("Initialized: %s",
+                   symbol->value.variableValue.is_initialized ? "Yes" : "No");
+            break;
+        case FUNCTION:
+            printf("Params: ");
+            for (int i = 0; i < symbol->value.functionValue.params_size; i++)
+            {
+                printf("%s (%s)",
+                       symbol->value.functionValue.params[i].name,
+                       symbol->value.functionValue.params[i].type);
+                if (i < symbol->value.functionValue.params_size - 1)
+                {
+                    printf(", ");
+                }
+            }
+            break;
+        case STRUCT:
+            printf("Fields: ");
+            for (int i = 0; i < symbol->value.structValue.fields_size; i++)
+            {
+                printf("%s (%s)",
+                       symbol->value.structValue.fields[i].name,
+                       symbol->value.structValue.fields[i].type);
+                if (i < symbol->value.structValue.fields_size - 1)
+                {
+                    printf(", ");
+                }
+            }
+            break;
+        default:
+            printf("No additional details.");
+            break;
+        }
+
+        printf("\n");
         current = current->next;
     }
+
+    printf("================================================================================================================\n");
 }
 
 void initializeSymbolsTableStack(SymbolsTableStack *stack)

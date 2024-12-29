@@ -4,9 +4,19 @@
 
 // --- Data Structures ---
 
+typedef union Data
+{
+    struct
+    {
+        char *name;
+        char *type;
+    } variable;
+} Data;
+
 typedef struct Node
 {
     char *name;
+    Data data;
     struct Node *parent;
     struct Node **children;
     int size;

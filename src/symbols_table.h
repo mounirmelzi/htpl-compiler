@@ -4,6 +4,12 @@
 
 // --- Data Structures ---
 
+typedef struct VariableDefinition
+{
+    char *name;
+    char *type;
+} VariableDefinition;
+
 typedef struct VariableValue
 {
     bool is_initialized;
@@ -11,12 +17,14 @@ typedef struct VariableValue
 
 typedef struct FunctionValue
 {
-    void *params;
+    VariableDefinition *params;
+    int params_size;
 } FunctionValue;
 
 typedef struct StructValue
 {
-    void *fields;
+    VariableDefinition *fields;
+    int fields_size;
 } StructValue;
 
 typedef union SymbolValue

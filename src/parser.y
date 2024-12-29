@@ -178,6 +178,7 @@ main_function
         addChildren($$, 1, $7);
 
         SymbolValue value;
+        value.functionValue.params_size = 0;
         value.functionValue.params = NULL;
         Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
     }
@@ -189,6 +190,7 @@ function_definition
         addChildren($$, 1, $7);
 
         SymbolValue value;
+        value.functionValue.params_size = 0;
         value.functionValue.params = NULL;
         Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
     }
@@ -196,9 +198,17 @@ function_definition
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 2, $4, $8);
 
-        // todo: create entry in the symbols table
+        Node *node = $4;
+
         SymbolValue value;
-        value.functionValue.params = NULL;
+        value.functionValue.params_size = node->size;
+        value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
+
+        for (int i = 0; i < node->size; i++) {
+            value.functionValue.params[i].name = strdup(node->children[i]->data.variable.name);
+            value.functionValue.params[i].type = strdup(node->children[i]->data.variable.type);
+        }
+
         Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION, value);
     }
 ;
@@ -216,7 +226,12 @@ parameter_list
 
 parameter
     : IDENTIFIER COLON type {
-        $$ = createNode(&syntaxTree, "parameter");
+        Node *node = createNode(&syntaxTree, "parameter");
+        Data data;
+        data.variable.name = $1;
+        data.variable.type = $3; 
+        node->data = data;
+        $$ = node;
     }
 ;
 
@@ -258,9 +273,17 @@ struct_definition
         $$ = createNode(&syntaxTree, "struct_definition");
         addChildren($$, 1, $4);
 
-        // todo: create entry in the symbols table
+        Node *node = $4;
+
         SymbolValue value;
-        value.structValue.fields = NULL;
+        value.structValue.fields_size = node->size;
+        value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
+
+        for (int i = 0; i < node->size; i++) {
+            value.structValue.fields[i].name = strdup(node->children[i]->data.variable.name);
+            value.structValue.fields[i].type = strdup(node->children[i]->data.variable.type);
+        }
+
         Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT, value);
     }
 ;
@@ -278,7 +301,12 @@ struct_body
 
 field_definition
     : LET IDENTIFIER COLON type SEMICOLON {
-        $$ = createNode(&syntaxTree, "field_definition");
+        Node *node = createNode(&syntaxTree, "field_definition");
+        Data data;
+        data.variable.name = $2;
+        data.variable.type = $4; 
+        node->data = data;
+        $$ = node;
     }
 ;
 
@@ -343,7 +371,7 @@ type
     | type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
         char type[2048];
         sprintf(type, "%s[%d]", $1, $3);
-        $$ = type;
+        $$ = strdup(type);
     }
 ;
 
