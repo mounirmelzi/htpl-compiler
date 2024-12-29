@@ -1,32 +1,44 @@
 #pragma once
 
+#include <stdbool.h>
+
 // --- Data Structures ---
 
-typedef struct Attribute // represente un attribut d'un symbole (categorie, type, ...)
+typedef struct VariableValue
 {
-    char *name;
-    char *value;
-} Attribute;
+    bool is_initialized;
+} VariableValue;
 
-typedef struct AttributeNode
+typedef struct FunctionValue
 {
-    Attribute attribute;
-    struct AttributeNode *next;
-    struct AttributeNode *previous;
-} AttributeNode;
+    void *params;
+} FunctionValue;
 
-typedef struct AttributesList // liste doublement chainee contenant des AttributeNode
+typedef struct StructValue
 {
-    AttributeNode *first; // premier noeud
-    AttributeNode *last;  // dernier noeud
-    int size;             // nbr total d'attributs
-} AttributesList;
+    void *fields;
+} StructValue;
+
+typedef union SymbolValue
+{
+    VariableValue variableValue;
+    FunctionValue functionValue;
+    StructValue structValue;
+} SymbolValue;
+
+typedef enum SymbolCategory
+{
+    VARIABLE,
+    FUNCTION,
+    STRUCT,
+} SymbolCategory;
 
 typedef struct Symbol // represente une entite identifiable dans le programme (variable, function, struct,..)
 {
-    int id;
     char *name;
-    AttributesList attributes; // liste des attributs associes au symbole
+    void *type;
+    SymbolCategory category;
+    SymbolValue value;
 } Symbol;
 
 typedef struct SymbolNode
@@ -63,16 +75,9 @@ void initializeSymbolsTable(SymbolsTable *table);
 void deleteSymbolsTable(SymbolsTable *table);
 
 Symbol *searchSymbol(SymbolsTable *table, const char *name);
-Symbol *createSymbol(SymbolsTable *table, int id, const char *name);
-int deleteSymbol(SymbolsTable *table, const char *name);
+Symbol *createSymbol(SymbolsTable *table, const char *name);
+bool deleteSymbol(SymbolsTable *table, const char *name);
 
-Attribute *searchAttribute(AttributesList *attributes, const char *name);
-Attribute *createAttribute(AttributesList *attributes, const char *name, const char *value);
-int deleteAttribute(AttributesList *attributes, const char *name);
-int updateAttribute(AttributesList *attributes, const char *name, const char *newValue);
-void initializeAttributesList(AttributesList *attributes);
-
-void printAttributesList(const AttributesList *attributes);
 void printSymbolsTable(const SymbolsTable *table);
 
 void initializeSymbolsTableStack(SymbolsTableStack *stack);

@@ -182,8 +182,7 @@ main_function
 
         // todo 2 : create entry in the symbols table
         SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
+        Symbol *symbol = createSymbol(symbolsTable, $2);
     }
 ;
 
@@ -194,8 +193,7 @@ function_definition
 
         // todo 4 : create entry in the symbols table
         SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
+        Symbol *symbol = createSymbol(symbolsTable, $2);
     }
 ;
 
@@ -269,8 +267,7 @@ struct_definition
 
         // todo 3 : create entry in the symbols table
         SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "struct");
+        Symbol *symbol = createSymbol(symbolsTable, $2);
     }
 ;
 
@@ -302,8 +299,7 @@ variable_definition
 
         // todo 1 : create entry in the symbols table
         SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
+        Symbol *symbol = createSymbol(symbolsTable, $2);
     }
 ;
 
@@ -314,8 +310,7 @@ variable_initialisation
 
         // todo 5 : create entry in the symbols table
         SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
+        Symbol *symbol = createSymbol(symbolsTable, $2);
     }
 ;
 

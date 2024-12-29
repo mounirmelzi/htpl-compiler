@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 // --- Data Structures ---
 
 typedef struct Node
@@ -23,6 +25,6 @@ void initializeSyntaxTree(SyntaxTree *tree);
 void deleteSyntaxTree(SyntaxTree *tree);
 
 Node *createNode(SyntaxTree *tree, const char *name);
-int addChildren(Node *parent, int size, ...);
+bool addChildren(Node *parent, int size, ...);
 Node *findNode(SyntaxTree *tree, const char *name);
 void printSyntaxTree(const SyntaxTree *tree);

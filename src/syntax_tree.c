@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "syntax_tree.h"
 
@@ -40,16 +41,16 @@ Node *createNode(SyntaxTree *tree, const char *name)
     return node;
 }
 
-int addChildren(Node *parent, int size, ...)
+bool addChildren(Node *parent, int size, ...)
 {
     if (!parent || size <= 0)
-        return 0;
+        return false;
 
     if (parent->size + size > parent->capacity)
     {
         Node **new_children = realloc(parent->children, sizeof(Node *) * (parent->size + size));
         if (!new_children)
-            return 0;
+            return false;
         parent->children = new_children;
         parent->capacity = parent->size + size;
     }
@@ -68,7 +69,7 @@ int addChildren(Node *parent, int size, ...)
     }
     va_end(args);
 
-    return 1;
+    return true;
 }
 
 Node *findNode(SyntaxTree *tree, const char *name)
