@@ -202,8 +202,8 @@ function_definition
         symbol->value.functionValue.params_size = node->size;
         symbol->value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
-            symbol->value.functionValue.params[i].name = strdup(node->children[i]->data.variableDefinition.name);
-            symbol->value.functionValue.params[i].type = strdup(node->children[i]->data.variableDefinition.type);
+            symbol->value.functionValue.params[i].name = node->children[i]->data.variableDefinition.name;
+            symbol->value.functionValue.params[i].type = node->children[i]->data.variableDefinition.type;
         }
     }
 ;
@@ -222,10 +222,8 @@ parameter_list
 parameter
     : IDENTIFIER COLON type {
         Node *node = createNode(&syntaxTree, "parameter");
-        Data data;
-        data.variableDefinition.name = $1;
-        data.variableDefinition.type = $3; 
-        node->data = data;
+        node->data.variableDefinition.name = $1;
+        node->data.variableDefinition.type = $3; 
         $$ = node;
     }
 ;
@@ -273,8 +271,8 @@ struct_definition
         symbol->value.structValue.fields_size = node->size;
         symbol->value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
-            symbol->value.structValue.fields[i].name = strdup(node->children[i]->data.variableDefinition.name);
-            symbol->value.structValue.fields[i].type = strdup(node->children[i]->data.variableDefinition.type);
+            symbol->value.structValue.fields[i].name = node->children[i]->data.variableDefinition.name;
+            symbol->value.structValue.fields[i].type = node->children[i]->data.variableDefinition.type;
         }
     }
 ;
@@ -293,10 +291,8 @@ struct_body
 field_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         Node *node = createNode(&syntaxTree, "field_definition");
-        Data data;
-        data.variableDefinition.name = $2;
-        data.variableDefinition.type = $4; 
-        node->data = data;
+        node->data.variableDefinition.name = $2;
+        node->data.variableDefinition.type = $4; 
         $$ = node;
     }
 ;
