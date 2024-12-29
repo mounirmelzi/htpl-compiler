@@ -138,7 +138,7 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
     }
 
     printf("================================================================================================================\n");
-    printf("| %-20s | %-15s | %-10s | %-30s \n", "Name", "Type", "Category", "Details");
+    printf("  %-20s | %-15s | %-10s | %-30s \n", "Name", "Type", "Category", "Details");
     printf("================================================================================================================\n");
 
     SymbolNode *current = table->first;
@@ -165,7 +165,7 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
         }
 
         // Print basic details
-        printf("| %-20s | %-15s | %-10s | ", symbol->name, symbol->type, category);
+        printf("  %-20s | %-15s | %-10s | ", symbol->name, symbol->type, category);
 
         // Print additional details based on category
         switch (symbol->category)
