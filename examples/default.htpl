@@ -1,35 +1,5 @@
 <HTPL>
     <function main(): void>
-        let i: int;
-        read(i);
-
-        <while (i != 0)>
-            write(i);
-            i = i - 1;
-        </while>
-
-        <if (i != 0)>
-            let j1: int;
-            i = -j;
-        </if>
-
-        let j11: int;
-
-        <if (i > 0)>
-            let j2: int;
-            i = i - 1;
-        <else>
-            let j3: int;
-            <if (i == 0)>
-                let j4: int;
-                i = i + 1;
-            <else>
-                let j5: int;
-                i = 0;
-            </if>
-        </if>
-
-        let j6: int;
-        write(i);
+        write("hello world");
     </function>
 </HTPL>
