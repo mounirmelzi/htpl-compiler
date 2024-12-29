@@ -2,36 +2,28 @@
 
 #include <stdbool.h>
 
+#include "global.h"
+
 // --- Data Structures ---
-
-typedef struct VariableDefinition
-{
-    char *name;
-    char *type;
-} VariableDefinition;
-
-typedef struct VariableValue
-{
-    bool is_initialized;
-} VariableValue;
-
-typedef struct FunctionValue
-{
-    VariableDefinition *params;
-    int params_size;
-} FunctionValue;
-
-typedef struct StructValue
-{
-    VariableDefinition *fields;
-    int fields_size;
-} StructValue;
 
 typedef union SymbolValue
 {
-    VariableValue variableValue;
-    FunctionValue functionValue;
-    StructValue structValue;
+    struct
+    {
+        bool is_initialized;
+    } variableValue;
+
+    struct
+    {
+        VariableDefinition *params;
+        int params_size;
+    } functionValue;
+
+    struct
+    {
+        VariableDefinition *fields;
+        int fields_size;
+    } structValue;
 } SymbolValue;
 
 typedef enum SymbolCategory

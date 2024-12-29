@@ -89,6 +89,37 @@ bool deleteSymbol(SymbolsTable *table, const char *name) // supprimer un symbole
 
             free(current->symbol.name); // Free symbol name
             free(current->symbol.type); // Free symbol type
+
+            switch (current->symbol.category)
+            {
+            case FUNCTION:
+                for (int i = 0; i < current->symbol.value.functionValue.params_size; i++)
+                {
+                    free(current->symbol.value.functionValue.params[i].name);
+                    free(current->symbol.value.functionValue.params[i].type);
+                }
+
+                free(current->symbol.value.functionValue.params);
+
+                current->symbol.value.functionValue.params = NULL;
+                current->symbol.value.functionValue.params_size = 0;
+                break;
+            case STRUCT:
+                for (int i = 0; i < current->symbol.value.structValue.fields_size; i++)
+                {
+                    free(current->symbol.value.structValue.fields[i].name);
+                    free(current->symbol.value.structValue.fields[i].type);
+                }
+
+                free(current->symbol.value.structValue.fields);
+
+                current->symbol.value.structValue.fields = NULL;
+                current->symbol.value.structValue.fields_size = 0;
+                break;
+            default:
+                break;
+            }
+
             free(current);
             table->size--;
             return true; // Success
@@ -146,27 +177,33 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
             break;
         case FUNCTION:
             printf("Params: ");
-            for (int i = 0; i < symbol->value.functionValue.params_size; i++)
+            if (symbol->value.functionValue.params_size == 0)
             {
-                printf("%s (%s)",
-                       symbol->value.functionValue.params[i].name,
-                       symbol->value.functionValue.params[i].type);
-                if (i < symbol->value.functionValue.params_size - 1)
+                printf("<empty>");
+            }
+            else
+            {
+                for (int i = 0; i < symbol->value.functionValue.params_size; i++)
                 {
-                    printf(", ");
+                    printf("%s (%s)", symbol->value.functionValue.params[i].name, symbol->value.functionValue.params[i].type);
+                    if (i < symbol->value.functionValue.params_size - 1)
+                        printf(", ");
                 }
             }
             break;
         case STRUCT:
             printf("Fields: ");
-            for (int i = 0; i < symbol->value.structValue.fields_size; i++)
+            if (symbol->value.structValue.fields_size == 0)
             {
-                printf("%s (%s)",
-                       symbol->value.structValue.fields[i].name,
-                       symbol->value.structValue.fields[i].type);
-                if (i < symbol->value.structValue.fields_size - 1)
+                printf("<empty>");
+            }
+            else
+            {
+                for (int i = 0; i < symbol->value.structValue.fields_size; i++)
                 {
-                    printf(", ");
+                    printf("%s (%s)", symbol->value.structValue.fields[i].name, symbol->value.structValue.fields[i].type);
+                    if (i < symbol->value.structValue.fields_size - 1)
+                        printf(", ");
                 }
             }
             break;

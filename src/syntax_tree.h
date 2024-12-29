@@ -2,15 +2,13 @@
 
 #include <stdbool.h>
 
+#include "global.h"
+
 // --- Data Structures ---
 
 typedef union Data
 {
-    struct
-    {
-        char *name;
-        char *type;
-    } variable;
+    VariableDefinition variableDefinition;
 } Data;
 
 typedef struct Node
