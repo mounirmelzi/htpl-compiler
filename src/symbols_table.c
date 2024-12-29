@@ -42,7 +42,7 @@ Symbol *searchSymbol(SymbolsTable *table, const char *name) // parcours la table
     return NULL;
 }
 
-Symbol *createSymbol(SymbolsTable *table, const char *name) // ajoute un nouveau sumbole a la table si il n'existe pas deja
+Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category, SymbolValue value) // ajoute un nouveau sumbole a la table si il n'existe pas deja
 {
     Symbol *symbol;
     if ((symbol = searchSymbol(table, name)))
@@ -52,6 +52,9 @@ Symbol *createSymbol(SymbolsTable *table, const char *name) // ajoute un nouveau
     SymbolNode *newNode = (SymbolNode *)malloc(sizeof(SymbolNode));
 
     newNode->symbol.name = strdup(name);
+    newNode->symbol.type = strdup(type);
+    newNode->symbol.category = category;
+    newNode->symbol.value = value;
 
     // ajout du nouveau symbole a la fin
     newNode->next = NULL;
@@ -85,6 +88,7 @@ bool deleteSymbol(SymbolsTable *table, const char *name) // supprimer un symbole
                 table->last = current->previous;
 
             free(current->symbol.name); // Free symbol name
+            free(current->symbol.type); // Free symbol type
             free(current);
             table->size--;
             return true; // Success
@@ -108,7 +112,24 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
     SymbolNode *current = table->first;
     while (current != NULL)
     {
-        printf("- Symbol: %s\n", current->symbol.name);
+        char category[1024];
+        switch (current->symbol.category)
+        {
+        case VARIABLE:
+            strcpy(category, "VARIABLE");
+            break;
+        case FUNCTION:
+            strcpy(category, "FUNCTION");
+            break;
+        case STRUCT:
+            strcpy(category, "STRUCT");
+            break;
+        default:
+            strcpy(category, "UNKNOWN CATEGORY");
+            break;
+        }
+
+        printf("- %s: %s (%s)\n", current->symbol.name, current->symbol.type, category);
         current = current->next;
     }
 }

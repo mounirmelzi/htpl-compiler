@@ -44,8 +44,8 @@ SyntaxTree syntaxTree;
 
 /* *** *** section de déclaration *** *** */
 
-%token TYPE_INTEGER TYPE_FLOAT TYPE_BOOLEAN TYPE_CHAR TYPE_STRING
-%token VOID
+%token <string_t>TYPE_INTEGER <string_t>TYPE_FLOAT <string_t>TYPE_BOOLEAN <string_t>TYPE_CHAR <string_t>TYPE_STRING
+%token <string_t>VOID
 %token <int_t>INTEGER_LITERAL <float_t>FLOAT_LITERAL <boolean_t>BOOLEAN_LITERAL <char_t>CHAR_LITERAL <string_t>STRING_LITERAL
 
 %token PLUS MINUS MULTIPLY DIVIDE MODULO
@@ -77,16 +77,17 @@ SyntaxTree syntaxTree;
 %right NOT
 
 
+%type <string_t> type
+%type <string_t> return_type
+
 %type <node_t> program
 %type <node_t> code_list
 %type <node_t> code
 
 %type <node_t> main_function
 %type <node_t> function_definition
-%type <node_t> function_signature
 %type <node_t> parameter_list
 %type <node_t> parameter
-%type <node_t> return_type
 %type <node_t> function_call
 %type <node_t> argument_list
 
@@ -97,10 +98,6 @@ SyntaxTree syntaxTree;
 %type <node_t> variable_definition
 %type <node_t> variable_initialisation
 %type <node_t> initialisation_expression
-
-%type <node_t> type
-%type <node_t> struct_type
-%type <node_t> array_type
 
 %type <node_t> variable
 %type <node_t> literal
@@ -180,31 +177,29 @@ main_function
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $7);
 
-        // todo 2 : create entry in the symbols table
-        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, $2);
+        SymbolValue value;
+        value.functionValue.params = NULL;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
     }
 ;
 
 function_definition
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature block FUNCTION_END {
+    : FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
         $$ = createNode(&syntaxTree, "function_definition");
-        addChildren($$, 2, $3, $4);
+        addChildren($$, 1, $7);
 
-        // todo 4 : create entry in the symbols table
-        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, $2);
+        SymbolValue value;
+        value.functionValue.params = NULL;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
     }
-;
+    | FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
+        $$ = createNode(&syntaxTree, "function_definition");
+        addChildren($$, 2, $4, $8);
 
-function_signature
-    : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type {
-        $$ = createNode(&syntaxTree, "function_signature");
-        addChildren($$, 1, $4);
-    }
-    | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type {
-        $$ = createNode(&syntaxTree, "function_signature");
-        addChildren($$, 2, $2, $5);
+        // todo: create entry in the symbols table
+        SymbolValue value;
+        value.functionValue.params = NULL;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION, value);
     }
 ;
 
@@ -222,17 +217,15 @@ parameter_list
 parameter
     : IDENTIFIER COLON type {
         $$ = createNode(&syntaxTree, "parameter");
-        addChildren($$, 1, $3);
     }
 ;
 
 return_type
     : type {
-        $$ = createNode(&syntaxTree, "return_type");
-        addChildren($$, 1, $1);
+        $$ = $1;
     }
     | VOID {
-        $$ = createNode(&syntaxTree, "return_type");
+        $$ = $1;
     }
 ;
 
@@ -265,9 +258,10 @@ struct_definition
         $$ = createNode(&syntaxTree, "struct_definition");
         addChildren($$, 1, $4);
 
-        // todo 3 : create entry in the symbols table
-        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, $2);
+        // todo: create entry in the symbols table
+        SymbolValue value;
+        value.structValue.fields = NULL;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT, value);
     }
 ;
 
@@ -285,7 +279,6 @@ struct_body
 field_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         $$ = createNode(&syntaxTree, "field_definition");
-        addChildren($$, 1, $4);
     }
 ;
 
@@ -295,22 +288,21 @@ field_definition
 variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_definition");
-        addChildren($$, 1, $4);
 
-        // todo 1 : create entry in the symbols table
-        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, $2);
+        SymbolValue value;
+        value.variableValue.is_initialized = false;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE, value);
     }
 ;
 
 variable_initialisation
     : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_initialisation");
-        addChildren($$, 2, $4, $6);
+        addChildren($$, 1, $6);
 
-        // todo 5 : create entry in the symbols table
-        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
-        Symbol *symbol = createSymbol(symbolsTable, $2);
+        SymbolValue value;
+        value.variableValue.is_initialized = true;
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE, value);
     }
 ;
 
@@ -331,40 +323,27 @@ initialisation_expression
 
 type
     : TYPE_INTEGER {
-        $$ = createNode(&syntaxTree, "type");
+        $$ = $1;
     }
     | TYPE_FLOAT {
-        $$ = createNode(&syntaxTree, "type");
+        $$ = $1;
     }
     | TYPE_BOOLEAN {
-        $$ = createNode(&syntaxTree, "type");
+        $$ = $1;
     }
     | TYPE_CHAR {
-        $$ = createNode(&syntaxTree, "type");
+        $$ = $1;
     }
     | TYPE_STRING {
-        $$ = createNode(&syntaxTree, "type");
+        $$ = $1;
     }
-    | struct_type {
-        $$ = createNode(&syntaxTree, "type");
-        addChildren($$, 1, $1);
+    | IDENTIFIER {
+        $$ = $1;
     }
-    | array_type {
-        $$ = createNode(&syntaxTree, "type");
-        addChildren($$, 1, $1);
-    }
-;
-
-struct_type
-    : IDENTIFIER {
-        $$ = createNode(&syntaxTree, "struct_type");
-    }
-;
-
-array_type
-    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
-        $$ = createNode(&syntaxTree, "array_type");
-        addChildren($$, 1, $1);
+    | type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        char type[2048];
+        sprintf(type, "%s[%d]", $1, $3);
+        $$ = type;
     }
 ;
 

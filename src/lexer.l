@@ -68,12 +68,47 @@ _{ID}               {
 "/while>"          { printf("TOKEN: WHILE_END (ligne: %d)\n", yylineno); column_counter += yyleng; return WHILE_END; }
 
  /* Types */
-"int"               { printf("TOKEN: TYPE_INTEGER (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_INTEGER; }
-"float"             { printf("TOKEN: TYPE_FLOAT (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_FLOAT; }
-"string"            { printf("TOKEN: TYPE_STRING (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_STRING; }
-"boolean"           { printf("TOKEN: TYPE_BOOLEAN (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_BOOLEAN; }
-"char"              { printf("TOKEN: TYPE_CHAR (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_CHAR; }
-"void"              { printf("TOKEN: VOID (ligne: %d)\n", yylineno); column_counter += yyleng; return VOID; }
+"int"               {
+    printf("TOKEN: TYPE_INTEGER (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("int");
+    return TYPE_INTEGER;
+}
+
+"float"             {
+    printf("TOKEN: TYPE_FLOAT (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("float");
+    return TYPE_FLOAT;
+}
+
+"string"            {
+    printf("TOKEN: TYPE_STRING (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("string");
+    return TYPE_STRING;
+}
+
+"boolean"           {
+    printf("TOKEN: TYPE_BOOLEAN (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("boolean");
+    return TYPE_BOOLEAN;
+}
+
+"char"              {
+    printf("TOKEN: TYPE_CHAR (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("char");
+    return TYPE_CHAR;
+}
+
+"void"              {
+    printf("TOKEN: VOID (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("void");
+    return VOID;
+}
 
  /* Littéraux */
 {DIGIT}+            {

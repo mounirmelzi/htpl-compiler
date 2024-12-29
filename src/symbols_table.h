@@ -36,7 +36,7 @@ typedef enum SymbolCategory
 typedef struct Symbol // represente une entite identifiable dans le programme (variable, function, struct,..)
 {
     char *name;
-    void *type;
+    char *type;
     SymbolCategory category;
     SymbolValue value;
 } Symbol;
@@ -75,7 +75,7 @@ void initializeSymbolsTable(SymbolsTable *table);
 void deleteSymbolsTable(SymbolsTable *table);
 
 Symbol *searchSymbol(SymbolsTable *table, const char *name);
-Symbol *createSymbol(SymbolsTable *table, const char *name);
+Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category, SymbolValue value);
 bool deleteSymbol(SymbolsTable *table, const char *name);
 
 void printSymbolsTable(const SymbolsTable *table);
