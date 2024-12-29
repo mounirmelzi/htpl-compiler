@@ -20,7 +20,7 @@ void yyerror(const char *);
 extern int column_counter;
 
 char *filename;
-SymbolsTable symbolsTable;
+SymbolsTableStack symbolsTableStack;
 SyntaxTree syntaxTree;
 
 %}
@@ -181,7 +181,8 @@ main_function
         addChildren($$, 1, $7);
 
         // todo 2 : create entry in the symbols table
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
+        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
     }
 ;
@@ -192,7 +193,8 @@ function_definition
         addChildren($$, 2, $3, $4);
 
         // todo 4 : create entry in the symbols table
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
+        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
         createAttribute(&symbol->attributes, "category", "function");
     }
 ;
@@ -266,7 +268,8 @@ struct_definition
         addChildren($$, 1, $4);
 
         // todo 3 : create entry in the symbols table
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
+        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
         createAttribute(&symbol->attributes, "category", "struct");
     }
 ;
@@ -298,7 +301,8 @@ variable_definition
         addChildren($$, 1, $4);
 
         // todo 1 : create entry in the symbols table
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
+        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
     }
 ;
@@ -309,7 +313,8 @@ variable_initialisation
         addChildren($$, 2, $4, $6);
 
         // todo 5 : create entry in the symbols table
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
+        SymbolsTable *symbolsTable = getCurrentScope(&symbolsTableStack);
+        Symbol *symbol = createSymbol(symbolsTable, symbolsTable->size + 1, $2);
         createAttribute(&symbol->attributes, "category", "variable");
     }
 ;
@@ -647,12 +652,21 @@ expression
 scope_begin
     : GREATER {
         $$ = NULL;
+        pushScope(&symbolsTableStack);
     }
 ;
 
 scope_end
     : LESS {
         $$ = NULL;
+
+        printf("\n");
+        printAllScopes(&symbolsTableStack);
+        printf("\n");
+
+        SymbolsTable *symbolsTable = popScope(&symbolsTableStack);
+        deleteSymbolsTable(symbolsTable);
+        free(symbolsTable);
     }
 ;
 
@@ -688,7 +702,8 @@ int main(int argc, char* argv[]) {
     yyset_in(file);
 
     initializeSyntaxTree(&syntaxTree);
-    initializeSymbolsTable(&symbolsTable);
+    initializeSymbolsTableStack(&symbolsTableStack);
+    pushScope(&symbolsTableStack); // push the global scope symbols table to the stack
 
     int result = yyparse();
 
@@ -697,11 +712,12 @@ int main(int argc, char* argv[]) {
     printf("\n");
     printSyntaxTree(&syntaxTree);
     printf("\n");
-    printSymbolsTable(&symbolsTable);
+    printf(">>> Printing the symbols table of the global scope\n");
+    printAllScopes(&symbolsTableStack);
     printf("\n");
 
     deleteSyntaxTree(&syntaxTree);
-    deleteSymbolsTable(&symbolsTable);
+    deleteSymbolsTableStack(&symbolsTableStack);
 
     if (result == 0) {
         printf("Parsing completed successfully!\n");

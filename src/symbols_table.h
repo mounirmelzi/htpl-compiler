@@ -43,6 +43,20 @@ typedef struct SymbolsTable // liste doublement chainee contenant des SymbolNode
     int size;          // nbr total de symboles
 } SymbolsTable;
 
+typedef struct SymbolsTableStackNode
+{
+    SymbolsTable table;
+    struct SymbolsTableStackNode *next;
+    struct SymbolsTableStackNode *previous;
+} SymbolsTableStackNode;
+
+typedef struct SymbolsTableStack
+{
+    SymbolsTableStackNode *first;
+    SymbolsTableStackNode *last;
+    int size;
+} SymbolsTableStack;
+
 // --- Functions ---
 
 void initializeSymbolsTable(SymbolsTable *table);
@@ -60,3 +74,15 @@ void initializeAttributesList(AttributesList *attributes);
 
 void printAttributesList(const AttributesList *attributes);
 void printSymbolsTable(const SymbolsTable *table);
+
+void initializeSymbolsTableStack(SymbolsTableStack *stack);
+void deleteSymbolsTableStack(SymbolsTableStack *stack);
+
+void pushScope(SymbolsTableStack *stack);
+SymbolsTable *popScope(SymbolsTableStack *stack);
+SymbolsTable *getCurrentScope(SymbolsTableStack *stack);
+
+Symbol *searchSymbolInAllScopes(SymbolsTableStack *stack, const char *name);
+Symbol *searchSymbolInCurrentScope(SymbolsTableStack *stack, const char *name);
+
+void printAllScopes(const SymbolsTableStack *stack);

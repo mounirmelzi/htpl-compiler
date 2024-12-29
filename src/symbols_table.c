@@ -53,9 +53,7 @@ Symbol *createSymbol(SymbolsTable *table, int id, const char *name) // ajoute un
         return symbol; // Symbol already exists
 
     // allouer espace memoire
-    SymbolNode *newNode = malloc(sizeof(SymbolNode));
-    if (!newNode)
-        return NULL;
+    SymbolNode *newNode = (SymbolNode *)malloc(sizeof(SymbolNode));
 
     newNode->symbol.id = id;
     newNode->symbol.name = strdup(name);
@@ -127,9 +125,7 @@ Attribute *createAttribute(AttributesList *attributes, const char *name, const c
         return attribute; // Attribute already exists
 
     // allouer espace memoire
-    AttributeNode *newNode = malloc(sizeof(AttributeNode));
-    if (!newNode)
-        return NULL;
+    AttributeNode *newNode = (AttributeNode *)malloc(sizeof(AttributeNode));
 
     newNode->attribute.name = strdup(name);
     newNode->attribute.value = strdup(value);
@@ -227,6 +223,138 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
     {
         printf("- Symbol ID: %d, Name: %s\n", current->symbol.id, current->symbol.name);
         printAttributesList(&(current->symbol.attributes));
+        current = current->next;
+    }
+}
+
+void initializeSymbolsTableStack(SymbolsTableStack *stack)
+{
+    stack->first = NULL;
+    stack->last = NULL;
+    stack->size = 0;
+}
+
+void deleteSymbolsTableStack(SymbolsTableStack *stack)
+{
+    SymbolsTableStackNode *current = stack->first;
+    while (current != NULL)
+    {
+        SymbolsTableStackNode *next = current->next;
+        deleteSymbolsTable(&(current->table));
+        free(current);
+        current = next;
+    }
+
+    initializeSymbolsTableStack(stack);
+}
+
+void pushScope(SymbolsTableStack *stack)
+{
+    SymbolsTableStackNode *newNode = (SymbolsTableStackNode *)malloc(sizeof(SymbolsTableStackNode));
+
+    initializeSymbolsTable(&(newNode->table));
+    newNode->next = NULL;
+    newNode->previous = NULL;
+
+    if (stack->first == NULL)
+    {
+        stack->first = newNode;
+        stack->last = newNode;
+    }
+    else
+    {
+        newNode->previous = stack->last;
+        stack->last->next = newNode;
+        stack->last = newNode;
+    }
+
+    stack->size++;
+}
+
+SymbolsTable *popScope(SymbolsTableStack *stack)
+{
+    if (stack->last == NULL)
+    {
+        fprintf(stderr, "Cannot pop from empty stack\n");
+        return NULL;
+    }
+
+    SymbolsTableStackNode *nodeToRemove = stack->last;
+
+    if (stack->first == stack->last)
+    {
+        stack->first = NULL;
+        stack->last = NULL;
+    }
+    else
+    {
+        stack->last = nodeToRemove->previous;
+        stack->last->next = NULL;
+    }
+
+    stack->size--;
+
+    SymbolsTable *table = (SymbolsTable *)malloc(sizeof(SymbolsTable));
+    table->first = nodeToRemove->table.first;
+    table->last = nodeToRemove->table.last;
+    table->size = nodeToRemove->table.size;
+
+    free(nodeToRemove);
+
+    return table;
+}
+
+SymbolsTable *getCurrentScope(SymbolsTableStack *stack)
+{
+    if (stack->last == NULL)
+        return NULL;
+
+    return &(stack->last->table);
+}
+
+Symbol *searchSymbolInAllScopes(SymbolsTableStack *stack, const char *name)
+{
+    if (stack->last == NULL)
+        return NULL;
+
+    SymbolsTableStackNode *current = stack->last;
+    while (current != NULL)
+    {
+        Symbol *symbol = searchSymbol(&(current->table), name);
+        if (symbol != NULL)
+            return symbol;
+
+        current = current->previous;
+    }
+
+    return NULL;
+}
+
+Symbol *searchSymbolInCurrentScope(SymbolsTableStack *stack, const char *name)
+{
+    SymbolsTable *currentScope = getCurrentScope(stack);
+    if (currentScope == NULL)
+        return NULL;
+
+    return searchSymbol(currentScope, name);
+}
+
+void printAllScopes(const SymbolsTableStack *stack)
+{
+    if (stack->first == NULL)
+    {
+        printf("Symbols Table Stack is empty\n");
+        return;
+    }
+
+    printf("Total number of scopes: %d\n", stack->size);
+
+    SymbolsTableStackNode *current = stack->first;
+    int scopeNum = 0;
+    while (current != NULL)
+    {
+        printf("=== Scope %d ===\n", scopeNum++);
+        printSymbolsTable(&(current->table));
         current = current->next;
     }
 }
