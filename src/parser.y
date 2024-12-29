@@ -126,6 +126,9 @@ SyntaxTree syntaxTree;
 %type <node_t> calculation
 %type <node_t> expression
 
+%type <node_t> scope_begin scope_end
+%type <node_t> block
+
 
 
 /* *** *** section des actions *** *** */
@@ -173,9 +176,9 @@ code
 /* function rules */
 
 main_function
-    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER statement_list FUNCTION_END {
+    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID block FUNCTION_END {
         $$ = createNode(&syntaxTree, "main_function");
-        addChildren($$, 1, $8);
+        addChildren($$, 1, $7);
 
         // todo 2 : create entry in the symbols table
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
@@ -184,9 +187,9 @@ main_function
 ;
 
 function_definition
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER statement_list FUNCTION_END {
+    : FUNCTION_BEGIN FUNCTION_NAME function_signature block FUNCTION_END {
         $$ = createNode(&syntaxTree, "function_definition");
-        addChildren($$, 2, $3, $5);
+        addChildren($$, 2, $3, $4);
 
         // todo 4 : create entry in the symbols table
         Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
@@ -528,20 +531,20 @@ call_statement
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END {
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block IF_END {
         $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 2, $3, $6);
+        addChildren($$, 2, $3, $5);
     }
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END {
+    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block ELSE block IF_END {
         $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 3, $3, $6, $8);
+        addChildren($$, 3, $3, $5, $7);
     }
 ;
 
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END {
+    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
         $$ = createNode(&syntaxTree, "while_statement");
-        addChildren($$, 2, $3, $6);
+        addChildren($$, 2, $3, $5);
     }
 ;
 
@@ -635,6 +638,27 @@ expression
     }
     | condition {
         $$ = $1;
+    }
+;
+
+
+/* scope rules */
+
+scope_begin
+    : GREATER {
+        $$ = NULL;
+    }
+;
+
+scope_end
+    : LESS {
+        $$ = NULL;
+    }
+;
+
+block
+    : scope_begin statement_list scope_end {
+        $$ = $2;
     }
 ;
 
