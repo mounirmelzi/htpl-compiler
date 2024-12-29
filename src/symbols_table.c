@@ -42,7 +42,7 @@ Symbol *searchSymbol(SymbolsTable *table, const char *name) // parcours la table
     return NULL;
 }
 
-Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category, SymbolValue value) // ajoute un nouveau sumbole a la table si il n'existe pas deja
+Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category) // ajoute un nouveau sumbole a la table si il n'existe pas deja
 {
     Symbol *symbol;
     if ((symbol = searchSymbol(table, name)))
@@ -54,7 +54,6 @@ Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, Sy
     newNode->symbol.name = strdup(name);
     newNode->symbol.type = strdup(type);
     newNode->symbol.category = category;
-    newNode->symbol.value = value;
 
     // ajout du nouveau symbole a la fin
     newNode->next = NULL;

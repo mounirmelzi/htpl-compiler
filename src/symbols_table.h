@@ -75,7 +75,7 @@ void initializeSymbolsTable(SymbolsTable *table);
 void deleteSymbolsTable(SymbolsTable *table);
 
 Symbol *searchSymbol(SymbolsTable *table, const char *name);
-Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category, SymbolValue value);
+Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category);
 bool deleteSymbol(SymbolsTable *table, const char *name);
 
 void printSymbolsTable(const SymbolsTable *table);

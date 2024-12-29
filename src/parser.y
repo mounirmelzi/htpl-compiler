@@ -177,10 +177,9 @@ main_function
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $7);
 
-        SymbolValue value;
-        value.functionValue.params_size = 0;
-        value.functionValue.params = NULL;
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        symbol->value.functionValue.params_size = 0;
+        symbol->value.functionValue.params = NULL;
     }
 ;
 
@@ -189,27 +188,23 @@ function_definition
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 1, $7);
 
-        SymbolValue value;
-        value.functionValue.params_size = 0;
-        value.functionValue.params = NULL;
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION, value);
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        symbol->value.functionValue.params_size = 0;
+        symbol->value.functionValue.params = NULL;
     }
     | FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
         $$ = createNode(&syntaxTree, "function_definition");
-        addChildren($$, 2, $4, $8);
+        addChildren($$, 1, $8);
 
         Node *node = $4;
 
-        SymbolValue value;
-        value.functionValue.params_size = node->size;
-        value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
-
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION);        
+        symbol->value.functionValue.params_size = node->size;
+        symbol->value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
-            value.functionValue.params[i].name = strdup(node->children[i]->data.variableDefinition.name);
-            value.functionValue.params[i].type = strdup(node->children[i]->data.variableDefinition.type);
+            symbol->value.functionValue.params[i].name = strdup(node->children[i]->data.variableDefinition.name);
+            symbol->value.functionValue.params[i].type = strdup(node->children[i]->data.variableDefinition.type);
         }
-
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION, value);
     }
 ;
 
@@ -271,20 +266,16 @@ argument_list
 struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
         $$ = createNode(&syntaxTree, "struct_definition");
-        addChildren($$, 1, $4);
 
         Node *node = $4;
 
-        SymbolValue value;
-        value.structValue.fields_size = node->size;
-        value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
-
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT);
+        symbol->value.structValue.fields_size = node->size;
+        symbol->value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
-            value.structValue.fields[i].name = strdup(node->children[i]->data.variableDefinition.name);
-            value.structValue.fields[i].type = strdup(node->children[i]->data.variableDefinition.type);
+            symbol->value.structValue.fields[i].name = strdup(node->children[i]->data.variableDefinition.name);
+            symbol->value.structValue.fields[i].type = strdup(node->children[i]->data.variableDefinition.type);
         }
-
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT, value);
     }
 ;
 
@@ -317,9 +308,8 @@ variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_definition");
 
-        SymbolValue value;
-        value.variableValue.is_initialized = false;
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE, value);
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol->value.variableValue.is_initialized = false;
     }
 ;
 
@@ -328,9 +318,8 @@ variable_initialisation
         $$ = createNode(&syntaxTree, "variable_initialisation");
         addChildren($$, 1, $6);
 
-        SymbolValue value;
-        value.variableValue.is_initialized = true;
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE, value);
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol->value.variableValue.is_initialized = true;
     }
 ;
 
