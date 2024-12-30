@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "parser.h"
+#include "parser.tab.h"
 
 
 extern char *filename;
@@ -23,8 +23,7 @@ int column_counter = 1;
 /* *** *** les options de flex *** *** */
 
 %option noyywrap
-
-
+%option yylineno
 
 /* *** *** section des macros *** *** */
 
@@ -45,7 +44,7 @@ ID          [a-zA-Z][a-zA-Z0-9]*
 
  /* Fonctions */
 "<function"         { printf("TOKEN: FUNCTION_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_BEGIN; }
-"</function>"       { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_END; }
+"/function>"        { printf("TOKEN: FUNCTION_END (ligne: %d)\n", yylineno); column_counter += yyleng; return FUNCTION_END; }
 "main"              {
     printf("TOKEN: MAIN (ligne: %d)\n", yylineno);
     column_counter += yyleng;
@@ -62,18 +61,53 @@ _{ID}               {
 
  /* Boucles et conditions */
 "<if"               { printf("TOKEN: IF_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return IF_BEGIN; }
-"</if>"             { printf("TOKEN: IF_END (ligne: %d)\n", yylineno); column_counter += yyleng; return IF_END; }
-"<else>"            { printf("TOKEN: ELSE (ligne: %d)\n", yylineno); column_counter += yyleng; return ELSE; }
+"/if>"              { printf("TOKEN: IF_END (ligne: %d)\n", yylineno); column_counter += yyleng; return IF_END; }
+"else"              { printf("TOKEN: ELSE (ligne: %d)\n", yylineno); column_counter += yyleng; return ELSE; }
 "<while"            { printf("TOKEN: WHILE_BEGIN (ligne: %d)\n", yylineno); column_counter += yyleng; return WHILE_BEGIN; }
-"</while>"          { printf("TOKEN: WHILE_END (ligne: %d)\n", yylineno); column_counter += yyleng; return WHILE_END; }
+"/while>"           { printf("TOKEN: WHILE_END (ligne: %d)\n", yylineno); column_counter += yyleng; return WHILE_END; }
 
  /* Types */
-"int"               { printf("TOKEN: TYPE_INTEGER (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_INTEGER; }
-"float"             { printf("TOKEN: TYPE_FLOAT (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_FLOAT; }
-"string"            { printf("TOKEN: TYPE_STRING (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_STRING; }
-"boolean"           { printf("TOKEN: TYPE_BOOLEAN (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_BOOLEAN; }
-"char"              { printf("TOKEN: TYPE_CHAR (ligne: %d)\n", yylineno); column_counter += yyleng; return TYPE_CHAR; }
-"void"              { printf("TOKEN: VOID (ligne: %d)\n", yylineno); column_counter += yyleng; return VOID; }
+"int"               {
+    printf("TOKEN: TYPE_INTEGER (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("int");
+    return TYPE_INTEGER;
+}
+
+"float"             {
+    printf("TOKEN: TYPE_FLOAT (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("float");
+    return TYPE_FLOAT;
+}
+
+"string"            {
+    printf("TOKEN: TYPE_STRING (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("string");
+    return TYPE_STRING;
+}
+
+"boolean"           {
+    printf("TOKEN: TYPE_BOOLEAN (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("boolean");
+    return TYPE_BOOLEAN;
+}
+
+"char"              {
+    printf("TOKEN: TYPE_CHAR (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("char");
+    return TYPE_CHAR;
+}
+
+"void"              {
+    printf("TOKEN: VOID (ligne: %d)\n", yylineno);
+    column_counter += yyleng;
+    yylval.string_t = strdup("void");
+    return VOID;
+}
 
  /* Littéraux */
 {DIGIT}+            {
