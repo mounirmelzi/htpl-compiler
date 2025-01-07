@@ -620,48 +620,7 @@ condition
     }
 ;
 
-// calculation
-//     : literal {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 1, $1);
-//     }
-//     | variable {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 1, $1);
-//     }
-//     | function_call {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 1, $1);
-//     }
-//     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 1, $2);
-//     }
-//     | calculation PLUS calculation {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | calculation MINUS calculation {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | calculation MULTIPLY calculation {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | calculation DIVIDE calculation {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | calculation MODULO calculation {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | MINUS calculation %prec NEG {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 1, $2);
-//     }
-// ;
+
 
 /* arithmetic grammar */
 
@@ -816,32 +775,5 @@ int main(int argc, char* argv[]) {
 
     yyset_in(file);
    lookahead = yylex(); 
- printf("Lookahead token: %d\n", lookahead);
    calculation();  
-
-    // initializeSyntaxTree(&syntaxTree);
-    // initializeSymbolsTable(&symbolsTable);
-
-    // int result = yyparse();
-
-    // fclose(file);
-
-    // printf("\n");
-    // printSyntaxTree(&syntaxTree);
-    // printf("\n");
-    // printSymbolsTable(&symbolsTable);
-    // printf("\n");
-
-    // deleteSyntaxTree(&syntaxTree);
-    // deleteSymbolsTable(&symbolsTable);
-
-    // if (result == 0) {
-    //     printf("Parsing completed successfully!\n");
-    // } else if (result == 1) {
-    //     printf("Parsing failed due to an error.\n");
-    // } else if (result == 2) {
-    //     printf("Parsing failed due to memory exhaustion.\n");
-    // }
-
-    // return result;
 }
