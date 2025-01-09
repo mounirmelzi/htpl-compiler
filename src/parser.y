@@ -12,7 +12,7 @@
 #include "lexer.h"
 #include "symbols_table.h"
 #include "syntax_tree.h"
-
+#include "quadruplets.h"
 
 void yyerror(const char *);
 
@@ -22,6 +22,10 @@ extern int column_counter;
 char *filename;
 SymbolsTableStack symbolsTableStack;
 SyntaxTree syntaxTree;
+
+// Global variables for quadruples
+quad *quadList = NULL;  // Global list to store quadruples
+int quadCounter = 0;    // Counter for quadruples
 
 %}
 
@@ -503,6 +507,13 @@ read_statement
 
 assign_statement
     : variable ASSIGN expression SEMICOLON {
+        Node *var = (Node *)$1;
+        Node *expr = (Node *)$3;
+        // Generate a quadruple for the assignment
+        char temp[30];
+        sprintf(temp, "t%d", quadCounter);
+        insererQuadreplet(&quadList, ":=", expr->name, "", var->name, quadCounter++);
+
         $$ = createNode(&syntaxTree, "assign_statement");
         addChildren($$, 2, $1, $3);
     }
@@ -599,8 +610,13 @@ calculation
         $$ = $2;
     }
     | calculation PLUS calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        // Cast $1, $3, and $$ to Node *
+        Node *left = (Node *)$1;
+        Node *right = (Node *)$3;
+        Node *result = (Node *)($$ = createNode(&syntaxTree, "calculation"));
+        addChildren(result, 2, left, right);
+
+      
     }
     | calculation MINUS calculation {
         $$ = createNode(&syntaxTree, "calculation");
@@ -691,6 +707,10 @@ int main(int argc, char* argv[]) {
     initializeSyntaxTree(&syntaxTree);
     initializeSymbolsTableStack(&symbolsTableStack);
     pushScope(&symbolsTableStack); // push the global scope symbols table to the stack
+    // initializeSemanticModule(); // Initialize the semantic module
+    // Initialize the quadruple list
+    quadList = NULL;
+    quadCounter = 0;
 
     int result = yyparse();
 
@@ -703,6 +723,10 @@ int main(int argc, char* argv[]) {
     printAllScopes(&symbolsTableStack);
     printf("\n");
 
+    printf("Generated Quadruples:\n");
+    afficherQuad(quadList);
+    // finalizeSemanticModule(); 
+    
     deleteSyntaxTree(&syntaxTree);
     deleteSymbolsTableStack(&symbolsTableStack);
 

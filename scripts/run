@@ -19,7 +19,7 @@ BISON_FILE="../src/parser.y"
 BISON_OUTPUT="../out/parser.c"
 BISON_HEADER="../out/parser.h"
 
-LIBRARIES="../src/symbols_table.c ../src/syntax_tree.c"
+LIBRARIES="../src/symbols_table.c ../src/syntax_tree.c ../src/quadruplets.c"
 
 BINARY_PROGRAM="../bin/compiler"
 
