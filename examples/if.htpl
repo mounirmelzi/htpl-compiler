@@ -2,19 +2,10 @@
     <function main(): void>
         let i: int;
         read(i);
-
-        <if (i != 0)>
-            i = -i;
-        </if>
-
         <if (i > 0)>
             i = i - 1;
         <else>
-            <if (i == 0)>
-                i = i + 1;
-            <else>
-                i = 0;
-            </if>
+        i = i + 1;
         </if>
 
         write(i);
