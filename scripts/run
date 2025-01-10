@@ -1,8 +1,10 @@
 #!/bin/bash
 
+# Create necessary directories
 mkdir -p ../bin
 mkdir -p ../out
 
+# Check if a filename is provided
 if [ $# -eq 0 ]; then
     FILE_NAME="../examples/default.htpl"
     echo -e "No filename provided. Using default file: $FILE_NAME\n"
@@ -10,7 +12,7 @@ else
     FILE_NAME="$1"
 fi
 
-
+# Define file paths
 LEX_FILE="../src/lexer.l"
 LEX_OUTPUT="../out/lexer.c"
 LEX_HEADER="../out/lexer.h"
@@ -19,15 +21,23 @@ BISON_FILE="../src/parser.y"
 BISON_OUTPUT="../out/parser.c"
 BISON_HEADER="../out/parser.h"
 
+PILE_SOURCE="../src/pile.c"  # Path to pile.c
 LIBRARIES="../src/symbols_table.c ../src/syntax_tree.c ../src/quadruplets.c"
 
 BINARY_PROGRAM="../bin/compiler"
 
-
+# Clean previous builds
 ./clean
+
+# Stop on error
 set -e
 
+# Generate parser and lexer files
 bison -Wcounterexamples -d -o "$BISON_OUTPUT" --defines="$BISON_HEADER" "$BISON_FILE"
 flex --header-file="$LEX_HEADER" -o "$LEX_OUTPUT" "$LEX_FILE"
-gcc -o "$BINARY_PROGRAM" "$BISON_OUTPUT" "$LEX_OUTPUT" $LIBRARIES -lfl -lm -I"../src" -I"../out"
+
+# Compile and link everything
+gcc -o "$BINARY_PROGRAM" "$BISON_OUTPUT" "$LEX_OUTPUT" "$PILE_SOURCE" $LIBRARIES -lfl -lm -I"../src" -I"../out"
+
+# Run the compiler
 "$BINARY_PROGRAM" "$FILE_NAME"

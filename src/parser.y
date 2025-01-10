@@ -13,6 +13,7 @@
 #include "symbols_table.h"
 #include "syntax_tree.h"
 #include "quadruplets.h"
+#include "pile.h"
 
 void yyerror(const char *);
 
@@ -24,6 +25,7 @@ SymbolsTableStack symbolsTableStack;
 SyntaxTree syntaxTree;
 
 // Global variables for quadruples
+pile * stack;
 quad *quadList = NULL;  // Global list to store quadruples
 int quadCounter = 0;    // Counter for quadruples
 
@@ -507,13 +509,6 @@ read_statement
 
 assign_statement
     : variable ASSIGN expression SEMICOLON {
-        Node *var = (Node *)$1;
-        Node *expr = (Node *)$3;
-        // Generate a quadruple for the assignment
-        char temp[30];
-        sprintf(temp, "t%d", quadCounter);
-        insererQuadreplet(&quadList, ":=", expr->name, "", var->name, quadCounter++);
-
         $$ = createNode(&syntaxTree, "assign_statement");
         addChildren($$, 2, $1, $3);
     }
@@ -544,10 +539,48 @@ if_statement
     }
 ;
 
+// while_statement
+//     : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
+//         $$ = createNode(&syntaxTree, "while_statement");
+//         addChildren($$, 2, $3, $5);
+//     }
+// ;
+
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
+    : WHILE_BEGIN {
+        // empiler l'adresse de debut
+        empiler(stack, quadCounter);
+    }
+    LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+           
+            char tmp[10];
+            sprintf(tmp, "R%d", quadCounter);  
+            insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
+            empiler(stack, quadCounter);  // empiler quad
+            quadCounter++;
+       
+    }
+    block WHILE_END {
+        
+        int addrDebutWhile = depiler(stack);  
+        int addrCondWhile = depiler(stack); 
+
+        char adresseCondWhile[10];
+        sprintf(adresseCondWhile, "%d", addrDebutWhile);
+        insererQuadreplet(&quadList, "BR", adresseCondWhile, "", "", quadCounter);
+        quadCounter++;
+
+        // Update BZ 
+        char adresse[30];
+        sprintf(adresse, "%d", quadCounter);
+        updateQuadreplet(quadList, addrCondWhile, adresse);
+
+        // quadruplet pour la fin du while loop
+        insererQuadreplet(&quadList, "label", "", "", "end_while", quadCounter);
+        quadCounter++;
+
         $$ = createNode(&syntaxTree, "while_statement");
-        addChildren($$, 2, $3, $5);
+        addChildren($$, 2, $4, $7);  
     }
 ;
 
@@ -610,11 +643,8 @@ calculation
         $$ = $2;
     }
     | calculation PLUS calculation {
-        // Cast $1, $3, and $$ to Node *
-        Node *left = (Node *)$1;
-        Node *right = (Node *)$3;
-        Node *result = (Node *)($$ = createNode(&syntaxTree, "calculation"));
-        addChildren(result, 2, left, right);
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
 
       
     }
@@ -709,6 +739,7 @@ int main(int argc, char* argv[]) {
     pushScope(&symbolsTableStack); // push the global scope symbols table to the stack
     // initializeSemanticModule(); // Initialize the semantic module
     // Initialize the quadruple list
+    stack = (pile *)malloc(sizeof(pile));
     quadList = NULL;
     quadCounter = 0;
 

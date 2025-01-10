@@ -1,7 +1,7 @@
 <HTPL>
+
     <function main(): void>
+    a=b;
         write("hello world");
-        a=2;
-        b=3;
     </function>
 </HTPL>

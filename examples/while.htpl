@@ -2,15 +2,11 @@
     let i: int;
     
     <function main(): void>    
-        read(i);
-
-        <if (i < 0)>
-            i = -i;
-        </if>
-
+        <while (i != 0)>
         <while (i != 0)>
             write(i);
             i = i - 1;
+        </while>
         </while>
     </function>
 </HTPL>
