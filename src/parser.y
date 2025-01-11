@@ -174,10 +174,18 @@ code
 
 main_function
     : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID block FUNCTION_END {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, function '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $7);
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
         symbol->value.functionValue.params_size = 0;
         symbol->value.functionValue.params = NULL;
     }
@@ -185,20 +193,36 @@ main_function
 
 function_definition
     : FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, function '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 1, $7);
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
         symbol->value.functionValue.params_size = 0;
         symbol->value.functionValue.params = NULL;
     }
     | FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, function '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "function_definition");
         addChildren($$, 1, $8);
 
         Node *node = $4;
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION);        
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION);        
         symbol->value.functionValue.params_size = node->size;
         symbol->value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
@@ -239,9 +263,39 @@ return_type
 
 function_call
     : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            char error[100];
+            sprintf(error, "semantic error, undefined function '%s'", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (symbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "semantic error, '%s' is not a function", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "function_call");
     }
     | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            char error[100];
+            sprintf(error, "semantic error, undefined function '%s'", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (symbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "semantic error, '%s' is not a function", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "function_call");
         addChildren($$, 1, $3);
     }
@@ -263,11 +317,19 @@ argument_list
 
 struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, struct '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "struct_definition");
 
         Node *node = $4;
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT);
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT);
         symbol->value.structValue.fields_size = node->size;
         symbol->value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
         for (int i = 0; i < node->size; i++) {
@@ -302,19 +364,35 @@ field_definition
 
 variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, variable '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "variable_definition");
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
         symbol->value.variableValue.is_initialized = false;
     }
 ;
 
 variable_initialisation
     : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, variable '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "variable_initialisation");
         addChildren($$, 1, $6);
 
-        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
         symbol->value.variableValue.is_initialized = true;
     }
 ;
@@ -351,6 +429,21 @@ type
         $$ = $1;
     }
     | IDENTIFIER {
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            char error[100];
+            sprintf(error, "semantic error, undefined struct type '%s'", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (symbol->category != STRUCT) {
+            char error[100];
+            sprintf(error, "semantic error, '%s' is not a struct", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = $1;
     }
     | type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
@@ -373,6 +466,14 @@ variable
         addChildren($$, 1, $1);
     }
     | IDENTIFIER {
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            char error[100];
+            sprintf(error, "semantic error, undefined variable '%s'", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
         $$ = createNode(&syntaxTree, "variable");
     }
 ;
