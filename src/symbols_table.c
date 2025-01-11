@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "symbols_table.h"
 
@@ -18,12 +19,6 @@ void deleteSymbolsTable(SymbolsTable *table) //
     {
         SymbolNode *toDelete = current;
         current = current->next;
-
-        // Free attributes list
-        while (toDelete->symbol.attributes.first)
-        {
-            deleteAttribute(&toDelete->symbol.attributes, toDelete->symbol.attributes.first->attribute.name);
-        }
 
         free(toDelete->symbol.name); // Free the symbol name
         free(toDelete);
@@ -43,23 +38,22 @@ Symbol *searchSymbol(SymbolsTable *table, const char *name) // parcours la table
             return &current->symbol;
         current = current->next;
     }
+
     return NULL;
 }
 
-Symbol *createSymbol(SymbolsTable *table, int id, const char *name) // ajoute un nouveau sumbole a la table si il n'existe pas deja
+Symbol *createSymbol(SymbolsTable *table, const char *name, const char *type, SymbolCategory category) // ajoute un nouveau sumbole a la table si il n'existe pas deja
 {
     Symbol *symbol;
     if ((symbol = searchSymbol(table, name)))
         return symbol; // Symbol already exists
 
     // allouer espace memoire
-    SymbolNode *newNode = malloc(sizeof(SymbolNode));
-    if (!newNode)
-        return NULL;
+    SymbolNode *newNode = (SymbolNode *)malloc(sizeof(SymbolNode));
 
-    newNode->symbol.id = id;
     newNode->symbol.name = strdup(name);
-    initializeAttributesList(&newNode->symbol.attributes); // Initialize empty attributes list
+    newNode->symbol.type = strdup(type);
+    newNode->symbol.category = category;
 
     // ajout du nouveau symbole a la fin
     newNode->next = NULL;
@@ -75,7 +69,7 @@ Symbol *createSymbol(SymbolsTable *table, int id, const char *name) // ajoute un
     return &newNode->symbol; // Success
 }
 
-int deleteSymbol(SymbolsTable *table, const char *name) // supprimer un symbole et ses attributs de la table en ajustant les liens de la liste doublement chainee
+bool deleteSymbol(SymbolsTable *table, const char *name) // supprimer un symbole et ses attributs de la table en ajustant les liens de la liste doublement chainee
 {
     SymbolNode *current = table->first;
     while (current)
@@ -92,124 +86,47 @@ int deleteSymbol(SymbolsTable *table, const char *name) // supprimer un symbole 
             else
                 table->last = current->previous;
 
-            // Free the attributes
-            while (current->symbol.attributes.first)
+            free(current->symbol.name); // Free symbol name
+            free(current->symbol.type); // Free symbol type
+
+            switch (current->symbol.category)
             {
-                deleteAttribute(&current->symbol.attributes, current->symbol.attributes.first->attribute.name);
+            case FUNCTION:
+                for (int i = 0; i < current->symbol.value.functionValue.params_size; i++)
+                {
+                    free(current->symbol.value.functionValue.params[i].name);
+                    free(current->symbol.value.functionValue.params[i].type);
+                }
+
+                free(current->symbol.value.functionValue.params);
+
+                current->symbol.value.functionValue.params = NULL;
+                current->symbol.value.functionValue.params_size = 0;
+                break;
+            case STRUCT:
+                for (int i = 0; i < current->symbol.value.structValue.fields_size; i++)
+                {
+                    free(current->symbol.value.structValue.fields[i].name);
+                    free(current->symbol.value.structValue.fields[i].type);
+                }
+
+                free(current->symbol.value.structValue.fields);
+
+                current->symbol.value.structValue.fields = NULL;
+                current->symbol.value.structValue.fields_size = 0;
+                break;
+            default:
+                break;
             }
 
-            free(current->symbol.name); // Free symbol name
             free(current);
             table->size--;
-            return 1; // Success
+            return true; // Success
         }
         current = current->next;
     }
-    return 0; // Symbol not found
-}
 
-Attribute *searchAttribute(AttributesList *attributes, const char *name) // parcours la liste des attributs pour trouver un dont le nom correspond a name
-{
-    AttributeNode *current = attributes->first;
-    while (current)
-    {
-        if (strcmp(current->attribute.name, name) == 0)
-            return &current->attribute;
-        current = current->next;
-    }
-    return NULL;
-}
-
-Attribute *createAttribute(AttributesList *attributes, const char *name, const char *value) // ajout d'un attribut dans une liste d'attributs si il n'existe pas deja
-{
-    Attribute *attribute;
-    if ((attribute = searchAttribute(attributes, name)))
-        return attribute; // Attribute already exists
-
-    // allouer espace memoire
-    AttributeNode *newNode = malloc(sizeof(AttributeNode));
-    if (!newNode)
-        return NULL;
-
-    newNode->attribute.name = strdup(name);
-    newNode->attribute.value = strdup(value);
-    newNode->next = NULL;
-    newNode->previous = attributes->last;
-
-    // ajout a la fin
-    if (attributes->last)
-        attributes->last->next = newNode;
-    else
-        attributes->first = newNode;
-
-    attributes->last = newNode;
-    attributes->size++;         // mise a jour de la taille de la liste
-    return &newNode->attribute; // Success
-}
-
-int deleteAttribute(AttributesList *attributes, const char *name) // supprimer un attribut de la table en ajustant les liens dans la liste doublement chainee
-{
-    AttributeNode *current = attributes->first;
-    while (current)
-    {
-        if (strcmp(current->attribute.name, name) == 0)
-        {
-            if (current->previous)
-                current->previous->next = current->next;
-            else
-                attributes->first = current->next;
-
-            if (current->next)
-                current->next->previous = current->previous;
-            else
-                attributes->last = current->previous;
-
-            free(current->attribute.name);  // Free attribute name
-            free(current->attribute.value); // Free attribute value
-            free(current);
-            attributes->size--;
-            return 1; // Success
-        }
-        current = current->next;
-    }
-    return 0; // Attribute not found
-}
-
-int updateAttribute(AttributesList *attributes, const char *name, const char *newValue) // met a jour la valeur d'un attribut existant
-{
-    Attribute *attribute = searchAttribute(attributes, name);
-    if (!attribute)
-        return 0; // Attribute not found
-
-    // liberer l'ancienne valeur et la remplacer par la nouvelle
-    free(attribute->value);
-    attribute->value = strdup(newValue);
-    return 1; // Success
-}
-
-void initializeAttributesList(AttributesList *attributes) // initalise une liste d'attributs vide
-{
-    attributes->first = NULL;
-    attributes->last = NULL;
-    attributes->size = 0;
-}
-
-void printAttributesList(const AttributesList *attributes) // parcourt et affiche tous les attributs d'une liste
-{
-    if (!attributes || attributes->size == 0)
-    {
-        printf("  No attributes.\n");
-        return;
-    }
-
-    printf("  Attributes (%d):\n", attributes->size);
-
-    AttributeNode *current = attributes->first;
-    while (current != NULL)
-    {
-        printf("    - %s: %s\n", current->attribute.name, current->attribute.value);
-        current = current->next;
-    }
+    return false; // Symbol not found
 }
 
 void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous les symboles dans la table, ainsi que leurs attributs
@@ -220,13 +137,215 @@ void printSymbolsTable(const SymbolsTable *table) // parcourt et affiche tous le
         return;
     }
 
-    printf("Symbols Table (%d symbols):\n", table->size);
+    printf("================================================================================================================\n");
+    printf("  %-20s | %-15s | %-10s | %-30s \n", "Name", "Type", "Category", "Details");
+    printf("================================================================================================================\n");
 
     SymbolNode *current = table->first;
     while (current != NULL)
     {
-        printf("- Symbol ID: %d, Name: %s\n", current->symbol.id, current->symbol.name);
-        printAttributesList(&(current->symbol.attributes));
+        Symbol *symbol = &current->symbol;
+
+        // Determine category
+        char category[32];
+        switch (symbol->category)
+        {
+        case VARIABLE:
+            strcpy(category, "VARIABLE");
+            break;
+        case FUNCTION:
+            strcpy(category, "FUNCTION");
+            break;
+        case STRUCT:
+            strcpy(category, "STRUCT");
+            break;
+        default:
+            strcpy(category, "UNKNOWN");
+            break;
+        }
+
+        // Print basic details
+        printf("  %-20s | %-15s | %-10s | ", symbol->name, symbol->type, category);
+
+        // Print additional details based on category
+        switch (symbol->category)
+        {
+        case VARIABLE:
+            printf("Initialized: %s",
+                   symbol->value.variableValue.is_initialized ? "Yes" : "No");
+            break;
+        case FUNCTION:
+            printf("Params: ");
+            if (symbol->value.functionValue.params_size == 0)
+            {
+                printf("<empty>");
+            }
+            else
+            {
+                for (int i = 0; i < symbol->value.functionValue.params_size; i++)
+                {
+                    printf("%s (%s)", symbol->value.functionValue.params[i].name, symbol->value.functionValue.params[i].type);
+                    if (i < symbol->value.functionValue.params_size - 1)
+                        printf(", ");
+                }
+            }
+            break;
+        case STRUCT:
+            printf("Fields: ");
+            if (symbol->value.structValue.fields_size == 0)
+            {
+                printf("<empty>");
+            }
+            else
+            {
+                for (int i = 0; i < symbol->value.structValue.fields_size; i++)
+                {
+                    printf("%s (%s)", symbol->value.structValue.fields[i].name, symbol->value.structValue.fields[i].type);
+                    if (i < symbol->value.structValue.fields_size - 1)
+                        printf(", ");
+                }
+            }
+            break;
+        default:
+            printf("No additional details.");
+            break;
+        }
+
+        printf("\n");
+        current = current->next;
+    }
+
+    printf("================================================================================================================\n");
+}
+
+void initializeSymbolsTableStack(SymbolsTableStack *stack)
+{
+    stack->first = NULL;
+    stack->last = NULL;
+    stack->size = 0;
+}
+
+void deleteSymbolsTableStack(SymbolsTableStack *stack)
+{
+    SymbolsTableStackNode *current = stack->first;
+    while (current != NULL)
+    {
+        SymbolsTableStackNode *next = current->next;
+        deleteSymbolsTable(&(current->table));
+        free(current);
+        current = next;
+    }
+
+    initializeSymbolsTableStack(stack);
+}
+
+void pushScope(SymbolsTableStack *stack)
+{
+    SymbolsTableStackNode *newNode = (SymbolsTableStackNode *)malloc(sizeof(SymbolsTableStackNode));
+
+    initializeSymbolsTable(&(newNode->table));
+    newNode->next = NULL;
+    newNode->previous = NULL;
+
+    if (stack->first == NULL)
+    {
+        stack->first = newNode;
+        stack->last = newNode;
+    }
+    else
+    {
+        newNode->previous = stack->last;
+        stack->last->next = newNode;
+        stack->last = newNode;
+    }
+
+    stack->size++;
+}
+
+SymbolsTable *popScope(SymbolsTableStack *stack)
+{
+    if (stack->last == NULL)
+    {
+        fprintf(stderr, "Cannot pop from empty stack\n");
+        return NULL;
+    }
+
+    SymbolsTableStackNode *nodeToRemove = stack->last;
+
+    if (stack->first == stack->last)
+    {
+        stack->first = NULL;
+        stack->last = NULL;
+    }
+    else
+    {
+        stack->last = nodeToRemove->previous;
+        stack->last->next = NULL;
+    }
+
+    stack->size--;
+
+    SymbolsTable *table = (SymbolsTable *)malloc(sizeof(SymbolsTable));
+    table->first = nodeToRemove->table.first;
+    table->last = nodeToRemove->table.last;
+    table->size = nodeToRemove->table.size;
+
+    free(nodeToRemove);
+
+    return table;
+}
+
+SymbolsTable *getCurrentScope(SymbolsTableStack *stack)
+{
+    if (stack->last == NULL)
+        return NULL;
+
+    return &(stack->last->table);
+}
+
+Symbol *searchSymbolInAllScopes(SymbolsTableStack *stack, const char *name)
+{
+    if (stack->last == NULL)
+        return NULL;
+
+    SymbolsTableStackNode *current = stack->last;
+    while (current != NULL)
+    {
+        Symbol *symbol = searchSymbol(&(current->table), name);
+        if (symbol != NULL)
+            return symbol;
+
+        current = current->previous;
+    }
+
+    return NULL;
+}
+
+Symbol *searchSymbolInCurrentScope(SymbolsTableStack *stack, const char *name)
+{
+    SymbolsTable *currentScope = getCurrentScope(stack);
+    if (currentScope == NULL)
+        return NULL;
+
+    return searchSymbol(currentScope, name);
+}
+
+void printAllScopes(const SymbolsTableStack *stack)
+{
+    if (stack->first == NULL)
+    {
+        printf("Symbols Table Stack is empty\n");
+        return;
+    }
+
+    printf("Total number of scopes: %d\n", stack->size);
+
+    SymbolsTableStackNode *current = stack->first;
+    int scopeNum = 0;
+    while (current != NULL)
+    {
+        printf("=== Scope %d ===\n", scopeNum++);
+        printSymbolsTable(&(current->table));
         current = current->next;
     }
 }

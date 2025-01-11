@@ -12,23 +12,21 @@
 #include "parser.tab.h"
 #include "symbols_table.h"
 #include "syntax_tree.h"
+#include "quadruplets.h"
 
-
+void yyset_in(FILE *file);
 void yyerror(const char *);
-void function_declaration();
-void function_signature();
-void parameter();
-void return_type();
-void type_parameter();
-int lookahead;
 
-int yylex(void);
 
 extern int column_counter;
 extern int yylineno;
 
+
+Symbol *currentFunction = NULL;
+int QC;
+quad *quadList;
 char *filename;
-SymbolsTable symbolsTable;
+SymbolsTableStack symbolsTableStack;
 SyntaxTree syntaxTree;
 
 %}
@@ -52,8 +50,8 @@ SyntaxTree syntaxTree;
 
 /* *** *** section de déclaration *** *** */
 
-%token TYPE_INTEGER TYPE_FLOAT TYPE_BOOLEAN TYPE_CHAR TYPE_STRING
-%token VOID
+%token <string_t>TYPE_INTEGER <string_t>TYPE_FLOAT <string_t>TYPE_BOOLEAN <string_t>TYPE_CHAR <string_t>TYPE_STRING
+%token <string_t>VOID
 %token <int_t>INTEGER_LITERAL <float_t>FLOAT_LITERAL <boolean_t>BOOLEAN_LITERAL <char_t>CHAR_LITERAL <string_t>STRING_LITERAL
 
 %token PLUS MINUS MULTIPLY DIVIDE MODULO
@@ -85,19 +83,19 @@ SyntaxTree syntaxTree;
 %right NOT
 
 
+%type <string_t> type
+%type <string_t> return_type
+
 %type <node_t> program
 %type <node_t> code_list
 %type <node_t> code
 
-%type <node_t> function_declaration
-%type <node_t> type_parameter
-
 %type <node_t> main_function
-%type <node_t> function_signature
+%type <node_t> function_definition
+%type <node_t> parameter_list
 %type <node_t> parameter
-%type <node_t> return_type
-%type <node_t> function_body
 %type <node_t> function_call
+%type <node_t> argument_list
 
 %type <node_t> struct_definition
 %type <node_t> struct_body
@@ -106,10 +104,6 @@ SyntaxTree syntaxTree;
 %type <node_t> variable_definition
 %type <node_t> variable_initialisation
 %type <node_t> initialisation_expression
-
-%type <node_t> type
-%type <node_t> struct_type
-%type <node_t> array_type
 
 %type <node_t> variable
 %type <node_t> literal
@@ -135,6 +129,9 @@ SyntaxTree syntaxTree;
 %type <node_t> calculation
 %type <node_t> expression
 
+%type <node_t> scope_begin scope_end
+%type <node_t> block
+
 
 
 /* *** *** section des actions *** *** */
@@ -147,48 +144,34 @@ SyntaxTree syntaxTree;
 
 program
     : HTPL_BEGIN code_list main_function HTPL_END {
+        $$ = createNode(&syntaxTree, "program");
+        syntaxTree.root = $$;
+        addChildren($$, 2, $2, $3);
     }
 ;
 
 code_list
     : code_list code {
-       
+        $$ = $1 ? $1 : createNode(&syntaxTree, "code_list");
+        addChildren($$, 1, $2);
     }
     | %empty {
-        
+        $$ = NULL;
     }
 ;
 
-/*code
-    : function_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
-    }
-    | struct_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
-    }
-    | variable_definition {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
-    }
-    | variable_initialisation {
-        $$ = createNode(&syntaxTree, "code");
-        addChildren($$, 1, $1);
-    }
-;*/
-
 code
-    : function_declaration {
-       
+    : function_definition {
+        $$ = $1;
     }
     | struct_definition {
-    
+        $$ = $1;
     }
     | variable_definition {
-       
+        $$ = $1;
     }
     | variable_initialisation {
+        $$ = $1;
     }
 ;
 
@@ -196,138 +179,138 @@ code
 /* function rules */
 
 main_function
-    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID GREATER function_body FUNCTION_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
-        createAttribute(&symbol->attributes, "entry", "true");
+    : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID block FUNCTION_END {
+        $$ = createNode(&syntaxTree, "main_function");
+        addChildren($$, 1, $7);
 
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        symbol->value.functionValue.params_size = 0;
+        symbol->value.functionValue.params = NULL;
     }
 ;
 
-/*function_definition
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER function_body FUNCTION_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
-        createAttribute(&symbol->attributes, "entry", "false");
 
+function_definition
+    : FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
         $$ = createNode(&syntaxTree, "function_definition");
-        addChildren($$, 2, $3, $5);
+        addChildren($$, 1, $7);
+        
+        currentFunction = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        currentFunction->value.functionValue.params_size = 0;
+        currentFunction->value.functionValue.params = NULL;
+
+        pushScope(&symbolsTableStack);
     }
-;*/
+    | FUNCTION_BEGIN FUNCTION_NAME LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type block FUNCTION_END {
+        $$ = createNode(&syntaxTree, "function_definition");
+        addChildren($$, 1, $8);
 
-// function_signature
-//     : LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON return_type {
-//         $$ = createNode(&syntaxTree, "function_signature");
-//         addChildren($$, 1, $4);
-//     }
-//     | LEFT_PARENTHESIS parameter_list RIGHT_PARENTHESIS COLON return_type {
-//         $$ = createNode(&syntaxTree, "function_signature");
-//         addChildren($$, 2, $2, $5);
-//     }
-// ;
+        Node *node = $4;
 
-// parameter_list
-//     : parameter_list COMMA parameter {
-//         $$ = createNode(&syntaxTree, "parameter_list");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | parameter {
-//         $$ = createNode(&syntaxTree, "parameter_list");
-//         addChildren($$, 1, $1);
-//     }
-// ;
+        currentFunction = createSymbol(getCurrentScope(&symbolsTableStack), $2, $7, FUNCTION);
+        currentFunction->value.functionValue.params_size = node->size;
+        currentFunction->value.functionValue.params = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
+        for (int i = 0; i < node->size; i++) {
+            currentFunction->value.functionValue.params[i].name = node->children[i]->data.variableDefinition.name;
+            currentFunction->value.functionValue.params[i].type = node->children[i]->data.variableDefinition.type;
+        }
 
-// parameter
-//     : IDENTIFIER COLON type {
-//         $$ = createNode(&syntaxTree, "parameter");
-//         addChildren($$, 1, $3);
-//     }
-// ;
-
-// return_type
-//     : type {
-//         $$ = createNode(&syntaxTree, "return_type");
-//         addChildren($$, 1, $1);
-//     }
-//     | VOID {
-//         $$ = createNode(&syntaxTree, "return_type");
-//     }
-// ;
-
-/*************************************************/
-
-function_declaration
-    : FUNCTION_BEGIN FUNCTION_NAME function_signature GREATER{
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "function");
-        createAttribute(&symbol->attributes, "entry", "false");
+        pushScope(&symbolsTableStack);
     }
-; 
+;
 
-function_signature
-    : LEFT_PARENTHESIS parameter RIGHT_PARENTHESIS COLON return_type { 
+parameter_list
+    : parameter_list COMMA parameter {
+        $$ = $1;
+        addChildren($$, 1, $3);
+    }
+    | parameter {
+        $$ = createNode(&syntaxTree, "parameter_list");
+        addChildren($$, 1, $1);
     }
 ;
 
 parameter
-    : IDENTIFIER COLON type_parameter {
-       
+    : IDENTIFIER COLON type {
+        Node *node = createNode(&syntaxTree, "parameter");
+        node->data.variableDefinition.name = $1;
+        node->data.variableDefinition.type = $3; 
+        $$ = node;
     }
 ;
 
 return_type
-    : type_parameter {
-      
+    : type {
+        $$ = $1;
     }
     | VOID {
+        $$ = $1;
     }
 ;
-
-type_parameter
-    : TYPE_INTEGER {
-    }
-    | TYPE_FLOAT {
-    }
-    | TYPE_BOOLEAN {
-    }
-    | TYPE_CHAR {
-    }
-    | TYPE_STRING {
-    }
-;
-
-
-/**********************************************/
-
-function_body
-    : statement_list {
-     
-    }
-;
-
-// function_call
-//     : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
-//         $$ = createNode(&syntaxTree, "function_call");
-//     }
-//     | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
-//         $$ = createNode(&syntaxTree, "function_call");
-//         addChildren($$, 1, $3);
-//     }
-// ;
-
-// argument_list
-//     : argument_list COMMA expression {
-//         $$ = createNode(&syntaxTree, "argument_list");
-//         addChildren($$, 2, $1, $3);
-//     }
-//     | expression {
-//         $$ = createNode(&syntaxTree, "argument_list");
-//         addChildren($$, 1, $1);
-//     }
-// ;
 
 function_call
     : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
+
+        Symbol *functionSymbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (functionSymbol == NULL || functionSymbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "ERROR: Function %s is not declared.", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (functionSymbol->value.functionValue.params_size != 0) {
+            char error[100];
+            sprintf(error, "ERROR: Function %s expects %d parameters, but 0 were provided.",$1, functionSymbol->value.functionValue.params_size);
+            yyerror(error);
+            YYERROR;
+        }
+    }
+    | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
+        $$ = createNode(&syntaxTree, "function_call");
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
+        addChildren($$, 1, $3);
+
+        Symbol *functionSymbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (functionSymbol == NULL || functionSymbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "ERROR: Function %s is not declared.", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (functionSymbol->value.functionValue.params_size != ((Node *)$3)->size) {
+            char error[100];
+            sprintf(error, "ERROR: Function %s expects %d parameters, but %d were provided.", $1, functionSymbol->value.functionValue.params_size, ((Node *)$3)->size);
+            yyerror(error);
+            YYERROR;
+        }
+
+        for (int i = 0; i < ((Node *)$3)->size; i++) {
+            Node *argNode = ((Node *)$3)->children[i];
+            VariableDefinition *param = &(functionSymbol->value.functionValue.params[i]);
+
+            if (strcmp(param->type, argNode->data.variableDefinition.type) != 0) {
+                char error[100];
+                sprintf(error, "ERROR: Incompatible type for parameter %d. Expected %s, got %s.",
+                        i + 1, param->type, argNode->data.variableDefinition.type);
+                yyerror(error);
+                YYERROR;
+            }
+        }
+    }
+;
+
+argument_list
+    : argument_list COMMA expression {
+        $$ = $1;
+        addChildren($$, 1, $3);
+    }
+    | expression {
+        $$ = createNode(&syntaxTree, "argument_list");
+        addChildren($$, 1, $1);
     }
 ;
 
@@ -336,23 +319,37 @@ function_call
 
 struct_definition
     : STRUCT_BEGIN IDENTIFIER GREATER struct_body STRUCT_END {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "struct");
+        $$ = createNode(&syntaxTree, "struct_definition");
 
+        Node *node = $4;
+
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, strdup("type"), STRUCT);
+        symbol->value.structValue.fields_size = node->size;
+        symbol->value.structValue.fields = (VariableDefinition *)malloc(sizeof(VariableDefinition) * node->size);
+        for (int i = 0; i < node->size; i++) {
+            symbol->value.structValue.fields[i].name = node->children[i]->data.variableDefinition.name;
+            symbol->value.structValue.fields[i].type = node->children[i]->data.variableDefinition.type;
+        }
     }
 ;
 
 struct_body
     : struct_body field_definition {
-
+        $$ = $1;
+        addChildren($$, 1, $2);
     }
     | field_definition {
-
+        $$ = createNode(&syntaxTree, "struct_body");
+        addChildren($$, 1, $1);
     }
 ;
 
 field_definition
     : LET IDENTIFIER COLON type SEMICOLON {
+        Node *node = createNode(&syntaxTree, "field_definition");
+        node->data.variableDefinition.name = $2;
+        node->data.variableDefinition.type = $4; 
+        $$ = node;
     }
 ;
 
@@ -361,27 +358,62 @@ field_definition
 
 variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
-        createAttribute(&symbol->attributes, "is_initialised", "false");
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, variable '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
 
+        $$ = createNode(&syntaxTree, "variable_definition");
+
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol->value.variableValue.is_initialized = false;
+        insererQuadreplet(&quadList, "DECLARE", $2, "", "", QC);
+        QC++;
     }
 ;
 
 variable_initialisation
     : LET IDENTIFIER COLON type ASSIGN initialisation_expression SEMICOLON {
-        Symbol *symbol = createSymbol(&symbolsTable, symbolsTable.size + 1, $2);
-        createAttribute(&symbol->attributes, "category", "variable");
-        createAttribute(&symbol->attributes, "is_initialised", "true");
+        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
+        if (symbol != NULL) {
+            char error[100];
+            sprintf(error, "semantic error, variable '%s' is already declared in current scope", $2);
+            yyerror(error);
+            YYERROR;
+        }
+
+        $$ = createNode(&syntaxTree, "variable_initialisation");
+        addChildren($$, 1, $6);
+
+        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
+        symbol->value.variableValue.is_initialized = true;
+
+        if (strcmp($4, ((Node *)$6)->data.variableDefinition.type) == 0) {
+            insererQuadreplet(&quadList, "ASSIGN", ((Node *)$6)->data.variableDefinition.name, "", $2, QC);
+            QC++;
+        } else {
+            char error[100];
+            sprintf(error,"\nERROR: Incompatible type with %s !\n", symbol->type);
+            yyerror(error);
+            YYERROR;
+        }
     }
 ;
 
 initialisation_expression
     : expression {
+        $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type =((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | array_literal {
-      }
+        $$ = $1;
+    }
     | struct_literal {
+        $$ = $1;
     }
 ;
 
@@ -390,28 +422,27 @@ initialisation_expression
 
 type
     : TYPE_INTEGER {
+        $$ = $1;
     }
     | TYPE_FLOAT {
+        $$ = $1;
     }
     | TYPE_BOOLEAN {
+        $$ = $1;
     }
     | TYPE_CHAR {
+        $$ = $1;
     }
     | TYPE_STRING {
+        $$ = $1;
     }
-    | struct_type {
+    | IDENTIFIER {
+        $$ = $1;
     }
-    | array_type {
-    }
-;
-
-struct_type
-    : IDENTIFIER {
-    }
-;
-
-array_type
-    : type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+    | type LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
+        char type[2048];
+        sprintf(type, "%s[%d]", $1, $3);
+        $$ = strdup(type);
     }
 ;
 
@@ -420,48 +451,86 @@ array_type
 
 variable
     : variable DOT IDENTIFIER {
-
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
     }
     | variable LEFT_BRACKET INTEGER_LITERAL RIGHT_BRACKET {
-
+        $$ = createNode(&syntaxTree, "variable");
+        addChildren($$, 1, $1);
     }
     | IDENTIFIER {
+        $$ = createNode(&syntaxTree, "variable");
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            char error[100];
+            sprintf(error, "ERROR: Variable %s is not declared !", $1);
+            yyerror(error);
+            YYERROR;
+        }
+        ((Node *)$$)->data.variableDefinition.type = symbol->type;
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
     }
 ;
 
 literal
     : INTEGER_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->data.variableDefinition.type = "int";
+        char buffer[20]; 
+        sprintf(buffer, "%d", $1); 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer);
     }
     | FLOAT_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->data.variableDefinition.type = "float";
+        char buffer[20]; 
+        sprintf(buffer, "%f", $1); 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | BOOLEAN_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->data.variableDefinition.type = "bool";
+        char buffer[6]; 
+        sprintf(buffer, "%s", $1 ? "true" : "false");
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | CHAR_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->data.variableDefinition.type = "char";
+        char buffer[2] = { $1, '\0' }; 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | STRING_LITERAL {
+        $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->data.variableDefinition.type = "string";
+        ((Node *)$$)->data.variableDefinition.name = strdup($1); 
     }
 ;
-
 
 /* struct literals */
 
 struct_literal
     : LEFT_BRACE struct_field_list RIGHT_BRACE {
-    
+        $$ = createNode(&syntaxTree, "struct_literal");
+        addChildren($$, 1, $2);
     }
 ;
 
 struct_field_list
     : struct_field_list COMMA struct_field {
-     
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | struct_field {
+        $$ = createNode(&syntaxTree, "struct_field_list");
+        addChildren($$, 1, $1);
     }
 ;
 
 struct_field
     : IDENTIFIER ASSIGN expression {
-
+        $$ = createNode(&syntaxTree, "struct_field");
+        addChildren($$, 1, $3);
     }
 ;
 
@@ -470,16 +539,18 @@ struct_field
 
 array_literal
     : LEFT_BRACKET array_values RIGHT_BRACKET {
-   
+        $$ = $2;
     }
 ;
 
 array_values
     : array_values COMMA expression {
-   
+        $$ = $1;
+        addChildren($$, 1, $3);
     }
     | expression {
-       
+        $$ = createNode(&syntaxTree, "array_values");
+        addChildren($$, 1, $1);
     }
 ;
 
@@ -488,85 +559,132 @@ array_values
 
 statement_list
     : statement_list statement {
-        
+        $$ = $1;
+        addChildren($$, 1, $2);
     }
     | statement {
-        
+        $$ = createNode(&syntaxTree, "statement_list");
+        addChildren($$, 1, $1);
     }
 ;
 
 statement
     : variable_definition {
-      
+        $$ = $1;
     }
     | variable_initialisation {
-      
+        $$ = $1;
     }
     | write_statement {
-        
+        $$ = $1;
     }
     | read_statement {
-      
+        $$ = $1;
     }
     | assign_statement {
-       
+        $$ = $1;
     }
     | return_statement {
-       
+        $$ = $1;
     }
     | call_statement {
-  
+        $$ = $1;
     }
     | if_statement {
-
+        $$ = $1;
     }
     | while_statement {
-      
+        $$ = $1;
     }
 ;
 
 write_statement
     : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON {
-     
+        $$ = createNode(&syntaxTree, "write_statement");
+        addChildren($$, 1, $3);
+
+        insererQuadreplet(&quadList, "WRITE", ((Node *)$3)->data.variableDefinition.name, "", "", QC);
+        QC++;
     }
 ;
 
 read_statement
     : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON {
-    
+        $$ = createNode(&syntaxTree, "read_statement");
+        addChildren($$, 1, $3);
+        insererQuadreplet(&quadList, "READ", ((Node *)$3)->data.variableDefinition.name, "", "", QC);
+        QC++;
     }
 ;
 
 assign_statement
     : variable ASSIGN expression SEMICOLON {
-
+        $$ = createNode(&syntaxTree, "assign_statement");
+        addChildren($$, 2, $1, $3);
+        if (strcmp(((Node *)$1)->data.variableDefinition.type, ((Node *)$3)->data.variableDefinition.type) == 0) {
+            insererQuadreplet(&quadList, "ASSIGN", ((Node *)$3)->data.variableDefinition.name, "", ((Node *)$1)->data.variableDefinition.name, QC);
+            QC++;
+        } else {
+            char error[100];
+            sprintf(error,"\nERROR: Incompatible type with %s !\n", ((Node *)$1)->data.variableDefinition.type);
+            yyerror(error);
+            YYERROR;
+        }
     }
 ;
 
 return_statement
     : RETURN expression SEMICOLON {
-   
+        $$ = createNode(&syntaxTree, "return_statement");
+        addChildren($$, 1, $2);
+
+        /*if (currentFunction == NULL) {
+            yyerror("ERROR: Return statement outside of a function.");
+            YYERROR;
+        }
+
+        if (strcmp(currentFunction->type, "void") == 0 && strcmp(((Node *)$2)->data.variableDefinition.type, "void") != 0) {
+            yyerror("ERROR: Cannot return a value from a void function.");
+            YYERROR;
+        }
+
+        if (strcmp(currentFunction->type, "void") != 0 && strcmp(currentFunction->type, ((Node *)$2)->data.variableDefinition.type) != 0) {
+            char error[100];
+            sprintf(error, "ERROR: Incompatible return type. Expected %s, got %s.",
+                    currentFunction->type, ((Node *)$2)->data.variableDefinition.type);
+            yyerror(error);
+            YYERROR;
+        }
+
+        insererQuadreplet(&quadList, "RETURN", ((Node *)$2)->data.variableDefinition.name, "", "", QC);
+        QC++;*/
     }
 ;
 
 call_statement
     : function_call SEMICOLON {
- 
+        $$ = createNode(&syntaxTree, "call_statement");
+        addChildren($$, 1, $1);
+        insererQuadreplet(&quadList, "CALL", ((Node *)$1)->data.variableDefinition.name, "", "", QC);
+        QC++;
     }
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list IF_END {
-  
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 2, $3, $5);
     }
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list ELSE statement_list IF_END {
-
+    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block ELSE block IF_END {
+        $$ = createNode(&syntaxTree, "if_statement");
+        addChildren($$, 3, $3, $5, $7);
     }
 ;
 
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS GREATER statement_list WHILE_END {
- 
+    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
+        $$ = createNode(&syntaxTree, "while_statement");
+        addChildren($$, 2, $3, $5);
     }
 ;
 
@@ -575,215 +693,136 @@ while_statement
 
 condition
     : calculation EQUAL calculation {
-
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | calculation NOT_EQUAL calculation {
-
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | calculation LESS calculation {
-  
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | calculation LESS_OR_EQUAL calculation {
-    
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | calculation GREATER calculation {
-
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | calculation GREATER_OR_EQUAL calculation {
-
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
-   
+        $$ = $2;
     }
     | condition AND condition {
- 
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | condition OR condition {
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 2, $1, $3);
     }
     | NOT condition {
- 
+        $$ = createNode(&syntaxTree, "condition");
+        addChildren($$, 1, $2);
     }
 ;
 
- calculation
-     : literal {
-    
-     }
-     | variable {
+calculation
+    : literal {
+        $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
+    }
+    | variable {
+        $$ = $1;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
+    }
+    | function_call {
+        $$ = $1;
+    }
+    | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
+        $$ = $2;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$2)->data.variableDefinition.name;
+    }
+    | calculation PLUS calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MINUS calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MULTIPLY calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation DIVIDE calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | calculation MODULO calculation {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 2, $1, $3);
+    }
+    | MINUS calculation %prec NEG {
+        $$ = createNode(&syntaxTree, "calculation");
+        addChildren($$, 1, $2);
+    }
+;
 
-     }
-     | function_call {
-   
-     }
-     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
-  
-     }
-     | calculation PLUS calculation {
-
-     }
-     | calculation MINUS calculation {
- 
-     }
-     | calculation MULTIPLY calculation {
-  
-     }
-     | calculation DIVIDE calculation {
-        
-     }
-     | calculation MODULO calculation {
-    
-     }
-     | MINUS calculation %prec NEG {
-    
-     }
- ;
-
-/* arithmetic grammar */
-
-// calculation
-//     : primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation");
-//         addChildren($$, 2, $1, $2);
-//     }
-// ;
-
-// calculation_tail
-//     : PLUS primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//         addChildren($$, 2, $2, $3);
-//     }
-//     | MINUS primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//         addChildren($$, 2, $2, $3);
-//     }
-//     | MULTIPLY primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//         addChildren($$, 2, $2, $3);
-//     }
-//     | DIVIDE primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//         addChildren($$, 2, $2, $3);
-//     }
-//     | MODULO primary calculation_tail {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//         addChildren($$, 2, $2, $3);
-//     }
-//     | %empty {
-//         $$ = createNode(&syntaxTree, "calculation_tail");
-//     }
-// ;
-
-// primary
-//     : literal {
-//         $$ = createNode(&syntaxTree, "primary");
-//         addChildren($$, 1, $1);
-//     }
-//     | variable {
-//         $$ = createNode(&syntaxTree, "primary");
-//         addChildren($$, 1, $1);
-//     }
-//     | function_call {
-//         $$ = createNode(&syntaxTree, "primary");
-//         addChildren($$, 1, $1);
-//     }
-//     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
-//         $$ = createNode(&syntaxTree, "primary");
-//         addChildren($$, 1, $2);
-//     }
-//     | MINUS primary %prec NEG {
-//         $$ = createNode(&syntaxTree, "primary");
-//         addChildren($$, 1, $2);
-//     }
-// ;
-
- expression
+expression
     : calculation {
- 
-     }
-     | condition {
+        $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
+    }
+    | condition {
+        $$ = $1;
+    }
+;
 
-     }
- ;
+
+/* scope rules */
+
+scope_begin
+    : GREATER {
+        $$ = NULL;
+        pushScope(&symbolsTableStack);
+    }
+;
+
+scope_end
+    : LESS {
+        $$ = NULL;
+
+        printf("\n");
+        printAllScopes(&symbolsTableStack);
+        printf("\n");
+
+        SymbolsTable *symbolsTable = popScope(&symbolsTableStack);
+        deleteSymbolsTable(symbolsTable);
+        free(symbolsTable);
+    }
+;
+
+block
+    : scope_begin statement_list scope_end {
+        $$ = $2;
+        /*SymbolsTable *symbolsTable = popScope(&symbolsTableStack);
+        deleteSymbolsTable(symbolsTable);
+        free(symbolsTable);*/
+
+        //currentFunction = NULL;
+    }
+;
 
 %%
-/* Match helper function */
-void match(int expectedToken) {
-    if (lookahead == expectedToken) {
-        lookahead = yylex();
-    } else {
-        fprintf(stderr, "Syntax error: Expected %d, found %d\n", expectedToken, lookahead);
-        exit(1);
-    }
-}
-
-/* Recursive Descent Parser Implementation */
-
-void function_declaration() {
-    if (lookahead == FUNCTION_BEGIN){
-        match(FUNCTION_BEGIN);
-        if (lookahead == FUNCTION_NAME){
-            match (FUNCTION_NAME);
-            function_signature();
-            if (lookahead == GREATER){
-                match (GREATER);
-            }
-        }
-    }
-}
-
-void function_signature() {
-    if (lookahead == LEFT_PARENTHESIS){
-        match (LEFT_PARENTHESIS);
-        if (lookahead ==RIGHT_PARENTHESIS){
-            match (RIGHT_PARENTHESIS);
-            if (lookahead == COLON){
-                match(COLON);
-                return_type();
-            }
-        }else{
-            parameter();
-            if (lookahead ==RIGHT_PARENTHESIS){
-                match (RIGHT_PARENTHESIS);
-                if (lookahead == COLON){
-                    match(COLON);
-                    return_type();
-                }
-            }
-        }
-    }
-}
-
-void parameter() {
-    if (lookahead == IDENTIFIER){
-        match (IDENTIFIER);
-        if(lookahead == COLON){
-            match(COLON);
-            type_parameter();
-        }
-    }
-}
-
-void return_type(){
-    if (lookahead == VOID){
-        match (VOID);
-    }else{
-        type_parameter();
-    }
-}
-
-void type_parameter(){
-    if (lookahead == TYPE_INTEGER){
-        match (TYPE_INTEGER);
-    }else if (lookahead == TYPE_FLOAT){
-        match (TYPE_FLOAT);
-    }else if (lookahead == TYPE_BOOLEAN){
-        match (TYPE_BOOLEAN);
-    }else if (lookahead == TYPE_CHAR){
-        match (TYPE_CHAR);
-    }else if (lookahead == TYPE_STRING){
-        match (TYPE_STRING);
-    }
-}
 
 
 
@@ -807,33 +846,37 @@ int main(int argc, char* argv[]) {
     }
 
     yyset_in(file);
-   lookahead = yylex(); 
-   printf("Lookahead token: %d\n", lookahead);
-   function_declaration();  
+    
+    quadList = NULL;
+    QC = 0;
 
-    // initializeSyntaxTree(&syntaxTree);
-    // initializeSymbolsTable(&symbolsTable);
+    initializeSyntaxTree(&syntaxTree);
+    initializeSymbolsTableStack(&symbolsTableStack);
+    pushScope(&symbolsTableStack); // push the global scope symbols table to the stack
 
-    // int result = yyparse();
+    int result = yyparse();
 
-    // fclose(file);
+    fclose(file);
 
-    // printf("\n");
-    // printSyntaxTree(&syntaxTree);
-    // printf("\n");
-    // printSymbolsTable(&symbolsTable);
-    // printf("\n");
+    printf("\n");
+    printSyntaxTree(&syntaxTree);
+    printf("\n");
+    printf(">>> Printing the symbols table of the global scope\n");
+    printAllScopes(&symbolsTableStack);
+    printf("\n");
+    afficherQuad(quadList);
+    printf("\n");
 
-    // deleteSyntaxTree(&syntaxTree);
-    // deleteSymbolsTable(&symbolsTable);
+    deleteSyntaxTree(&syntaxTree);
+    deleteSymbolsTableStack(&symbolsTableStack);
 
-    // if (result == 0) {
-    //     printf("Parsing completed successfully!\n");
-    // } else if (result == 1) {
-    //     printf("Parsing failed due to an error.\n");
-    // } else if (result == 2) {
-    //     printf("Parsing failed due to memory exhaustion.\n");
-    // }
+    if (result == 0) {
+        printf("Parsing completed successfully!\n");
+    } else if (result == 1) {
+        printf("Parsing failed due to an error.\n");
+    } else if (result == 2) {
+        printf("Parsing failed due to memory exhaustion.\n");
+    }
 
-    // return result;
+    return result;
 }
