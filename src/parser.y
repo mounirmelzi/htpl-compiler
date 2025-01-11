@@ -123,6 +123,7 @@ int quadCounter = 0;    // Counter for quadruples
 %type <node_t> return_statement
 %type <node_t> call_statement
 %type <node_t> if_statement
+%type <node_t> optional_else
 %type <node_t> while_statement
 
 %type <node_t> condition
@@ -509,6 +510,13 @@ read_statement
 
 assign_statement
     : variable ASSIGN expression SEMICOLON {
+        Node *var = (Node *)$1;
+        Node *expr = (Node *)$3;
+        // Generate a quadruple for the assignment
+        char temp[30];
+        sprintf(temp, "t%d", quadCounter);
+        insererQuadreplet(&quadList, ":=", expr->name, "", var->name, quadCounter++);
+
         $$ = createNode(&syntaxTree, "assign_statement");
         addChildren($$, 2, $1, $3);
     }
@@ -528,93 +536,80 @@ call_statement
     }
 ;
 
-// if_statement
-//     : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block IF_END {
-//         $$ = createNode(&syntaxTree, "if_statement");
-//         addChildren($$, 2, $3, $5);
-//     }
-//     | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block ELSE block IF_END {
-//         $$ = createNode(&syntaxTree, "if_statement");
-//         addChildren($$, 3, $3, $5, $7);
-//     }
-// ;
-if_statement:
-//     : IF_BEGIN {
-//         // No specific action required here
-//     }
-//     LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
-//         char tmp[10];
-//         sprintf(tmp, "R%d", quadCounter);  // Placeholder for condition result
-//         insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
-//         empiler(stack, quadCounter);  // Save the address of the BZ quadruplet
-//         quadCounter++;
-//     }
-//     block IF_END {
-//         int addrBZ = depiler(stack);  // Retrieve the BZ quadruplet address
 
-//         // Update the BZ to point to the end of the `if` block
-//         char adresse[30];
-//         sprintf(adresse, "%d", quadCounter);
-//         updateQuadreplet(quadList, addrBZ, adresse);
-
-//         // Add a label at the end of the `if` block
-//         insererQuadreplet(&quadList, "label", "", "", "end_if", quadCounter);
-//         quadCounter++;
-
-//         $$ = createNode(&syntaxTree, "if_statement");
-//         addChildren($$, 2, $4, $7);
-//     }
-// |
-IF_BEGIN {
-        // No specific action required here
-    }
-    LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
-        char tmp[10];
-        sprintf(tmp, "R%d", quadCounter);  // Placeholder for condition result
+if_statement
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+        // jump to else if condition is false
+        char tmp[30];
+        sprintf(tmp, "R%d", quadCounter); 
         insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
-        empiler(stack, quadCounter);  // Save the address of the BZ quadruplet
+        empiler(stack, quadCounter); 
         quadCounter++;
     }
-    block ELSE {
-        int addrBZ = depiler(stack);  // Retrieve the BZ quadruplet address
-
-        // Add a BR quadruplet to skip the `else` block
-        char tmp[10];
-        sprintf(tmp, "%d", quadCounter + 1);  // Address of the `else` block
-        insererQuadreplet(&quadList, "BR", tmp, "", "", quadCounter);
-        empiler(stack, quadCounter);  // Save the BR quadruplet address
+    block {
+        // jump to end of if-else statement
+        insererQuadreplet(&quadList, "BR", "", "", "", quadCounter);
+        empiler(stack, quadCounter);  
         quadCounter++;
-
-        // Update the BZ to point to the `else` block
-        char adresse[30];
-        sprintf(adresse, "%d", quadCounter);
-        updateQuadreplet(quadList, addrBZ, adresse);
     }
-    block IF_END {
-        int addrBR = depiler(stack);  // Retrieve the BR quadruplet address
+    optional_else
+    IF_END {
+        // update BR to jump to the end of the if-else statement
+        int brAddress = depiler(stack);  
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, brAddress, endAddressStr);
 
-        // Update the BR to point to the end of the `else` block
-        char adresse[30];
-        sprintf(adresse, "%d", quadCounter);
-        updateQuadreplet(quadList, addrBR, adresse);
-
-        // Add a label at the end of the `else` block
+        
         insererQuadreplet(&quadList, "label", "", "", "end_if_else", quadCounter);
         quadCounter++;
 
-        $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 3, $4, $7, $10);
+        if ($8 == NULL) {  // No else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 2, $3, $6);
+        } else {  // With else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 3, $3, $6, $8);
+        }
     }
 ;
 
+optional_else
+    : ELSE {
+        insererQuadreplet(&quadList, "label", "", "", "else_block", quadCounter);
+        quadCounter++;
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
 
+        //  Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char elseAddressStr[30];
+        sprintf(elseAddressStr, "%d", quadCounter-1);  // Address of the else block
+        updateQuadreplet(quadList, bzAddress, elseAddressStr);
 
-// while_statement
-//     : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
-//         $$ = createNode(&syntaxTree, "while_statement");
-//         addChildren($$, 2, $3, $5);
-//     }
-// ;
+        // Push the BR instruction back onto the stack
+        empiler(stack, brAddress);
+    }
+    block {
+        $$ = $3;  // Return the else block
+    }
+    | %empty {
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
+
+        //Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, bzAddress, endAddressStr);
+
+        //Push the BR instruction back onto the stack
+        empiler(stack, brAddress);
+
+        $$ = NULL;  // No else block
+    }
+;
+
 
 while_statement
     : WHILE_BEGIN {
