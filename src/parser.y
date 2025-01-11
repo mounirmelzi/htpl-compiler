@@ -12,6 +12,7 @@
 #include "lexer.h"
 #include "symbols_table.h"
 #include "syntax_tree.h"
+#include "quadruplets.h"
 
 
 void yyerror(const char *);
@@ -304,6 +305,9 @@ variable_definition
     : LET IDENTIFIER COLON type SEMICOLON {
         $$ = createNode(&syntaxTree, "variable_definition");
 
+        ((Node *)$$)->name = strdup($2); // Identifier name
+        ((Node *)$$)->type = strdup($4);
+
         Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
         symbol->value.variableValue.is_initialized = false;
     }
@@ -374,24 +378,43 @@ variable
     }
     | IDENTIFIER {
         $$ = createNode(&syntaxTree, "variable");
+
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            fprintf(stderr, "Error: Undefined variable '%s' at line %d\n", $1, yylineno);
+            exit(EXIT_FAILURE);
+        }
+
+        ((Node *)$$)->name = strdup(symbol->name); 
+        ((Node *)$$)->type = strdup(symbol->type);
     }
 ;
 
 literal
     : INTEGER_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("int");
     }
     | FLOAT_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("float");
     }
     | BOOLEAN_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("boolean");
     }
     | CHAR_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("char");
     }
     | STRING_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("string");
     }
 ;
 
@@ -543,45 +566,109 @@ while_statement
 
 /* expression rules */
 
+
 condition
     : calculation EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar(); 
+        addQuadruple("==", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation NOT_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple("!=", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation LESS calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple("<", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation LESS_OR_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple("<=", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation GREATER calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple(">", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation GREATER_OR_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple(">=", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
         $$ = $2;
     }
     | condition AND condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple("and", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | condition OR condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char *temp = generateTempVar();
+        addQuadruple("or", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | NOT condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 1, $2);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 1, $2);
+
+        char *temp = generateTempVar();
+        addQuadruple("not", ((Node *)$2)->name, "", temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
 ;
 
@@ -599,28 +686,80 @@ calculation
         $$ = $2;
     }
     | calculation PLUS calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char *temp = generateTempVar(); 
+        addQuadruple("+", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation MINUS calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char *temp = generateTempVar();
+        addQuadruple("-", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation MULTIPLY calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char *temp = generateTempVar();
+        addQuadruple("*", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation DIVIDE calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char *temp = generateTempVar();
+        addQuadruple("/", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | calculation MODULO calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char *temp = generateTempVar();
+        addQuadruple("%", ((Node *)$1)->name, ((Node *)$3)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
     | MINUS calculation %prec NEG {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $2);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 1, $2);
+
+        char *temp = generateTempVar();
+        addQuadruple("-", "0", ((Node *)$2)->name, temp);
+        node->name = temp;
+
+        $$ = (void *)node;
+        free(temp);
     }
 ;
 
@@ -703,6 +842,8 @@ int main(int argc, char* argv[]) {
     printAllScopes(&symbolsTableStack);
     printf("\n");
 
+    afficherQuadruplets();
+
     deleteSyntaxTree(&syntaxTree);
     deleteSymbolsTableStack(&symbolsTableStack);
 
@@ -714,5 +855,6 @@ int main(int argc, char* argv[]) {
         printf("Parsing failed due to memory exhaustion.\n");
     }
 
+    freeQuadruplets();
     return result;
 }

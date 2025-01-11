@@ -1,0 +1,9 @@
+<HTPL>
+    let x: int = 10;
+    let y: int = 5;
+
+    <function main(): void>
+        let z: int = x + y;
+        write(z);
+    </function>
+</HTPL>
