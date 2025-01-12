@@ -676,7 +676,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "==", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -688,7 +687,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "!=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -700,7 +698,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "<", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -712,7 +709,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "<=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -724,7 +720,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, ">", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -736,7 +731,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, ">=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -751,7 +745,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "and", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -763,7 +756,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "or", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -775,7 +767,6 @@ condition
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "not", ((Node *)$2)->name, "", tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -805,7 +796,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "+", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -819,7 +809,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "-", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -833,7 +822,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "*", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -847,7 +835,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "/", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -861,7 +848,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "%", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
@@ -873,7 +859,6 @@ calculation
         char tmp[10];
         sprintf(tmp, "R%d", quadCounter);  
         insererQuadreplet(&quadList, "-", "0", ((Node *)$2)->name, tmp, quadCounter);
-        empiler(stack, quadCounter);  // empiler quad
         quadCounter++;
 
         $$ = (void *)node;
