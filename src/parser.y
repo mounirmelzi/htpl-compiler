@@ -124,6 +124,7 @@ int quadCounter = 0;    // Counter for quadruples
 %type <node_t> return_statement
 %type <node_t> call_statement
 %type <node_t> if_statement
+%type <node_t> optional_else
 %type <node_t> while_statement
 
 %type <node_t> condition
@@ -552,20 +553,113 @@ call_statement
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block IF_END {
-        $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 2, $3, $5);
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+        // jump to else if condition is false
+        char tmp[30];
+        sprintf(tmp, "R%d", quadCounter); 
+        insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
+        empiler(stack, quadCounter); 
+        quadCounter++;
     }
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block ELSE block IF_END {
-        $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 3, $3, $5, $7);
+    block {
+        // jump to end of if-else statement
+        insererQuadreplet(&quadList, "BR", "", "", "", quadCounter);
+        empiler(stack, quadCounter);  
+        quadCounter++;
+    }
+    optional_else
+    IF_END {
+        // update BR to jump to the end of the if-else statement
+        int brAddress = depiler(stack);  
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, brAddress, endAddressStr);
+
+        
+        insererQuadreplet(&quadList, "label", "", "", "end_if_else", quadCounter);
+        quadCounter++;
+
+        if ($8 == NULL) {  // No else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 2, $3, $6);
+        } else {  // With else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 3, $3, $6, $8);
+        }
     }
 ;
 
+optional_else
+    : ELSE {
+        insererQuadreplet(&quadList, "label", "", "", "else_block", quadCounter);
+        quadCounter++;
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
+
+        //  Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char elseAddressStr[30];
+        sprintf(elseAddressStr, "%d", quadCounter-1);  // Address of the else block
+        updateQuadreplet(quadList, bzAddress, elseAddressStr);
+
+        // Push the BR instruction back onto the stack
+        empiler(stack, brAddress);
+    }
+    block {
+        $$ = $3;  // Return the else block
+    }
+    | %empty {
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
+
+        //Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, bzAddress, endAddressStr);
+
+        // supprimer l'instr BR
+        supprimerQuadruplet(&quadList, brAddress);
+        $$ = NULL;  // No else block
+    }
+;
+
+
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
+    : WHILE_BEGIN {
+        // empiler l'adresse de debut
+        empiler(stack, quadCounter);
+    }
+    LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+           
+            char tmp[10];
+            sprintf(tmp, "R%d", quadCounter);  
+            insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
+            empiler(stack, quadCounter);  // empiler quad
+            quadCounter++;
+       
+    }
+    block WHILE_END {
+        
+        int addrDebutWhile = depiler(stack);  
+        int addrCondWhile = depiler(stack); 
+
+        char adresseCondWhile[10];
+        sprintf(adresseCondWhile, "%d", addrDebutWhile);
+        insererQuadreplet(&quadList, "BR", adresseCondWhile, "", "", quadCounter);
+        quadCounter++;
+
+        // Update BZ 
+        char adresse[30];
+        sprintf(adresse, "%d", quadCounter);
+        updateQuadreplet(quadList, addrCondWhile, adresse);
+
+        // quadruplet pour la fin du while loop
+        insererQuadreplet(&quadList, "label", "", "", "end_while", quadCounter);
+        quadCounter++;
+
         $$ = createNode(&syntaxTree, "while_statement");
-        addChildren($$, 2, $3, $5);
+        addChildren($$, 2, $4, $7);  
     }
 ;
 
