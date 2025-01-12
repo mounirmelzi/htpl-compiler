@@ -652,7 +652,7 @@ while_statement
         // Update BZ 
         char adresse[30];
         sprintf(adresse, "%d", quadCounter);
-        updateQuadreplet(quadList, addrCondWhile, adresse);
+        updateQuadreplet(quadList, addrDebutWhile, adresse);
 
         // quadruplet pour la fin du while loop
         insererQuadreplet(&quadList, "label", "", "", "end_while", quadCounter);
