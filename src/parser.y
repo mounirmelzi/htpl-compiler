@@ -12,6 +12,8 @@
 #include "lexer.h"
 #include "symbols_table.h"
 #include "syntax_tree.h"
+#include "quadruplets.h"
+#include "pile.h"
 
 
 void yyerror(const char *);
@@ -22,6 +24,11 @@ extern int column_counter;
 char *filename;
 SymbolsTableStack symbolsTableStack;
 SyntaxTree syntaxTree;
+
+// Global variables for quadruples
+pile * stack;
+quad *quadList = NULL;  // Global list to store quadruples
+int quadCounter = 0;    // Counter for quadruples
 
 %}
 
@@ -117,6 +124,7 @@ SyntaxTree syntaxTree;
 %type <node_t> return_statement
 %type <node_t> call_statement
 %type <node_t> if_statement
+%type <node_t> optional_else
 %type <node_t> while_statement
 
 %type <node_t> condition
@@ -174,18 +182,10 @@ code
 
 main_function
     : FUNCTION_BEGIN MAIN LEFT_PARENTHESIS RIGHT_PARENTHESIS COLON VOID block FUNCTION_END {
-        Symbol *symbol = searchSymbolInCurrentScope(&symbolsTableStack, $2);
-        if (symbol != NULL) {
-            char error[100];
-            sprintf(error, "semantic error, function '%s' is already declared in current scope", $2);
-            yyerror(error);
-            YYERROR;
-        }
-
         $$ = createNode(&syntaxTree, "main_function");
         addChildren($$, 1, $7);
 
-        symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
+        Symbol *symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $6, FUNCTION);
         symbol->value.functionValue.params_size = 0;
         symbol->value.functionValue.params = NULL;
     }
@@ -263,41 +263,56 @@ return_type
 
 function_call
     : FUNCTION_NAME LEFT_PARENTHESIS RIGHT_PARENTHESIS {
-        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
-        if (symbol == NULL) {
-            char error[100];
-            sprintf(error, "semantic error, undefined function '%s'", $1);
-            yyerror(error);
-            YYERROR;
-        }
-
-        if (symbol->category != FUNCTION) {
-            char error[100];
-            sprintf(error, "semantic error, '%s' is not a function", $1);
-            yyerror(error);
-            YYERROR;
-        }
-
         $$ = createNode(&syntaxTree, "function_call");
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
+
+        Symbol *functionSymbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (functionSymbol == NULL || functionSymbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "semantic error: Function %s is not declared.", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (functionSymbol->value.functionValue.params_size != 0) {
+            char error[100];
+            sprintf(error, "semantic error: Function %s expects %d parameters, but 0 were provided.",$1, functionSymbol->value.functionValue.params_size);
+            yyerror(error);
+            YYERROR;
+        }
     }
     | FUNCTION_NAME LEFT_PARENTHESIS argument_list RIGHT_PARENTHESIS {
-        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
-        if (symbol == NULL) {
-            char error[100];
-            sprintf(error, "semantic error, undefined function '%s'", $1);
-            yyerror(error);
-            YYERROR;
-        }
-
-        if (symbol->category != FUNCTION) {
-            char error[100];
-            sprintf(error, "semantic error, '%s' is not a function", $1);
-            yyerror(error);
-            YYERROR;
-        }
-
         $$ = createNode(&syntaxTree, "function_call");
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
         addChildren($$, 1, $3);
+
+        Symbol *functionSymbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (functionSymbol == NULL || functionSymbol->category != FUNCTION) {
+            char error[100];
+            sprintf(error, "semantic error: Function %s is not declared.", $1);
+            yyerror(error);
+            YYERROR;
+        }
+
+        if (functionSymbol->value.functionValue.params_size != ((Node *)$3)->size) {
+            char error[100];
+            sprintf(error, "semantic error: Function %s expects %d parameters, but %d were provided.", $1, functionSymbol->value.functionValue.params_size, ((Node *)$3)->size);
+            yyerror(error);
+            YYERROR;
+        }
+
+        for (int i = 0; i < ((Node *)$3)->size; i++) {
+            Node *argNode = ((Node *)$3)->children[i];
+            VariableDefinition *param = &(functionSymbol->value.functionValue.params[i]);
+
+            if (strcmp(param->type, argNode->data.variableDefinition.type) != 0) {
+                char error[100];
+                sprintf(error, "semantic error: Incompatible type for parameter %d. Expected %s, got %s.",
+                        i + 1, param->type, argNode->data.variableDefinition.type);
+                yyerror(error);
+                YYERROR;
+            }
+        }
     }
 ;
 
@@ -374,8 +389,13 @@ variable_definition
 
         $$ = createNode(&syntaxTree, "variable_definition");
 
+        ((Node *)$$)->name = strdup($2); // Identifier name
+        ((Node *)$$)->type = strdup($4);
+
         symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
         symbol->value.variableValue.is_initialized = false;
+        insererQuadreplet(&quadList, "DECLARE", $2, "", "", quadCounter);
+        quadCounter++;
     }
 ;
 
@@ -394,12 +414,25 @@ variable_initialisation
 
         symbol = createSymbol(getCurrentScope(&symbolsTableStack), $2, $4, VARIABLE);
         symbol->value.variableValue.is_initialized = true;
+
+        if (strcmp($4, ((Node *)$6)->data.variableDefinition.type) == 0) {
+            insererQuadreplet(&quadList, "ASSIGN", ((Node *)$6)->data.variableDefinition.name, "", $2, quadCounter);
+            quadCounter++;
+        } else {
+            char error[100];
+            sprintf(error,"\nERROR: Incompatible type with %s !\n", symbol->type);
+            yyerror(error);
+            YYERROR;
+        }
     }
 ;
+
 
 initialisation_expression
     : expression {
         $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type =((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | array_literal {
         $$ = $1;
@@ -475,24 +508,62 @@ variable
         }
 
         $$ = createNode(&syntaxTree, "variable");
+
+        Symbol *symbol = searchSymbolInAllScopes(&symbolsTableStack, $1);
+        if (symbol == NULL) {
+            fprintf(stderr, "Error: Undefined variable '%s' at line %d\n", $1, yylineno);
+            exit(EXIT_FAILURE);
+        }
+
+        ((Node *)$$)->name = strdup(symbol->name); 
+        ((Node *)$$)->type = strdup(symbol->type);
+        ((Node *)$$)->data.variableDefinition.type = symbol->type;
+        ((Node *)$$)->data.variableDefinition.name = strdup($1);
     }
 ;
 
 literal
     : INTEGER_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("int");
+        ((Node *)$$)->data.variableDefinition.type = "int";
+        char buffer[20]; 
+        sprintf(buffer, "%d", $1); 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer);
     }
     | FLOAT_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("float");
+        ((Node *)$$)->data.variableDefinition.type = "float";
+        char buffer[20]; 
+        sprintf(buffer, "%f", $1); 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | BOOLEAN_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("boolean");
+        ((Node *)$$)->data.variableDefinition.type = "bool";
+        char buffer[6]; 
+        sprintf(buffer, "%s", $1 ? "true" : "false");
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | CHAR_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("char");
+        ((Node *)$$)->data.variableDefinition.type = "char";
+        char buffer[2] = { $1, '\0' }; 
+        ((Node *)$$)->data.variableDefinition.name = strdup(buffer); 
     }
     | STRING_LITERAL {
         $$ = createNode(&syntaxTree, "literal");
+        ((Node *)$$)->name = strdup("literal");
+        ((Node *)$$)->type = strdup("string");
+        ((Node *)$$)->data.variableDefinition.type = "string";
+        ((Node *)$$)->data.variableDefinition.name = strdup($1); 
     }
 ;
 
@@ -592,6 +663,8 @@ write_statement
     : WRITE LEFT_PARENTHESIS expression RIGHT_PARENTHESIS SEMICOLON {
         $$ = createNode(&syntaxTree, "write_statement");
         addChildren($$, 1, $3);
+        insererQuadreplet(&quadList, "WRITE", ((Node *)$3)->data.variableDefinition.name, "", "", quadCounter);
+        quadCounter++;
     }
 ;
 
@@ -599,6 +672,8 @@ read_statement
     : READ LEFT_PARENTHESIS variable RIGHT_PARENTHESIS SEMICOLON {
         $$ = createNode(&syntaxTree, "read_statement");
         addChildren($$, 1, $3);
+        insererQuadreplet(&quadList, "READ", ((Node *)$3)->data.variableDefinition.name, "", "", quadCounter);
+        quadCounter++;
     }
 ;
 
@@ -606,6 +681,15 @@ assign_statement
     : variable ASSIGN expression SEMICOLON {
         $$ = createNode(&syntaxTree, "assign_statement");
         addChildren($$, 2, $1, $3);
+        if (strcmp(((Node *)$1)->data.variableDefinition.type, ((Node *)$3)->data.variableDefinition.type) == 0) {
+            insererQuadreplet(&quadList, "ASSIGN", ((Node *)$3)->data.variableDefinition.name, "", ((Node *)$1)->data.variableDefinition.name, quadCounter);
+            quadCounter++;
+        } else {
+            char error[100];
+            sprintf(error,"\nERROR: Incompatible type with %s !\n", ((Node *)$1)->data.variableDefinition.type);
+            yyerror(error);
+            YYERROR;
+        }
     }
 ;
 
@@ -620,114 +704,336 @@ call_statement
     : function_call SEMICOLON {
         $$ = createNode(&syntaxTree, "call_statement");
         addChildren($$, 1, $1);
+        insererQuadreplet(&quadList, "CALL", ((Node *)$1)->data.variableDefinition.name, "", "", quadCounter);
+        quadCounter++;
     }
 ;
 
 if_statement
-    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block IF_END {
-        $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 2, $3, $5);
+    : IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+        // jump to else if condition is false
+        char tmp[30];
+        sprintf(tmp, "R%d", quadCounter); 
+        insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
+        empiler(stack, quadCounter); 
+        quadCounter++;
     }
-    | IF_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block ELSE block IF_END {
-        $$ = createNode(&syntaxTree, "if_statement");
-        addChildren($$, 3, $3, $5, $7);
+    block {
+        // jump to end of if-else statement
+        insererQuadreplet(&quadList, "BR", "", "", "", quadCounter);
+        empiler(stack, quadCounter);  
+        quadCounter++;
+    }
+    optional_else
+    IF_END {
+        // update BR to jump to the end of the if-else statement
+        int brAddress = depiler(stack);  
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, brAddress, endAddressStr);
+
+        
+        insererQuadreplet(&quadList, "label", "", "", "end_if_else", quadCounter);
+        quadCounter++;
+
+        if ($8 == NULL) {  // No else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 2, $3, $6);
+        } else {  // With else part
+            $$ = createNode(&syntaxTree, "if_statement");
+            addChildren($$, 3, $3, $6, $8);
+        }
     }
 ;
 
+optional_else
+    : ELSE {
+        insererQuadreplet(&quadList, "label", "", "", "else_block", quadCounter);
+        quadCounter++;
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
+
+        //  Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char elseAddressStr[30];
+        sprintf(elseAddressStr, "%d", quadCounter-1);  // Address of the else block
+        updateQuadreplet(quadList, bzAddress, elseAddressStr);
+
+        // Push the BR instruction back onto the stack
+        empiler(stack, brAddress);
+    }
+    block {
+        $$ = $3;  // Return the else block
+    }
+    | %empty {
+        // Pop the BR instruction and save it
+        int brAddress = depiler(stack);
+
+        //Pop the BZ instruction and update it
+        int bzAddress = depiler(stack);
+        char endAddressStr[30];
+        sprintf(endAddressStr, "%d", quadCounter);  
+        updateQuadreplet(quadList, bzAddress, endAddressStr);
+
+        // supprimer l'instr BR
+        supprimerQuadruplet(&quadList, brAddress);
+        $$ = NULL;  // No else block
+    }
+;
+
+
 while_statement
-    : WHILE_BEGIN LEFT_PARENTHESIS condition RIGHT_PARENTHESIS block WHILE_END {
+    : WHILE_BEGIN {
+        // empiler l'adresse de debut
+        empiler(stack, quadCounter);
+    }
+    LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
+           
+            char tmp[10];
+            sprintf(tmp, "R%d", quadCounter);  
+            insererQuadreplet(&quadList, "BZ", tmp, "", "cond_result", quadCounter);
+            empiler(stack, quadCounter);  // empiler quad
+            quadCounter++;
+       
+    }
+    block WHILE_END {
+        
+        int addrDebutWhile = depiler(stack);  
+        int addrCondWhile = depiler(stack); 
+
+        char adresseCondWhile[10];
+        sprintf(adresseCondWhile, "%d", addrDebutWhile);
+        insererQuadreplet(&quadList, "BR", adresseCondWhile, "", "", quadCounter);
+        quadCounter++;
+
+        // Update BZ 
+        char adresse[30];
+        sprintf(adresse, "%d", quadCounter);
+        updateQuadreplet(quadList, addrDebutWhile, adresse);
+
+        // quadruplet pour la fin du while loop
+        insererQuadreplet(&quadList, "label", "", "", "end_while", quadCounter);
+        quadCounter++;
+
         $$ = createNode(&syntaxTree, "while_statement");
-        addChildren($$, 2, $3, $5);
+        addChildren($$, 2, $4, $7);  
     }
 ;
 
 
 /* expression rules */
 
+
+
 condition
     : calculation EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "==", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation NOT_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "!=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation LESS calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "<", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation LESS_OR_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "<=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation GREATER calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, ">", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation GREATER_OR_EQUAL calculation {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, ">=", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | LEFT_PARENTHESIS condition RIGHT_PARENTHESIS {
         $$ = $2;
     }
     | condition AND condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "and", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | condition OR condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 2, $1, $3);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "or", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | NOT condition {
-        $$ = createNode(&syntaxTree, "condition");
-        addChildren($$, 1, $2);
+        Node *node = createNode(&syntaxTree, "condition");
+        addChildren(node, 1, $2);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "not", ((Node *)$2)->name, "", tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
 ;
+
 
 calculation
     : literal {
         $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | variable {
         $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | function_call {
         $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | LEFT_PARENTHESIS calculation RIGHT_PARENTHESIS {
         $$ = $2;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$2)->data.variableDefinition.name;
     }
     | calculation PLUS calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "+", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation MINUS calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "-", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation MULTIPLY calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "*", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation DIVIDE calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "/", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | calculation MODULO calculation {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 2, $1, $3);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 2, $1, $3);
+
+        checkTypeCompatibility(((Node*)$1)->type, ((Node*)$3)->type);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "%", ((Node *)$1)->name, ((Node *)$3)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
     | MINUS calculation %prec NEG {
-        $$ = createNode(&syntaxTree, "calculation");
-        addChildren($$, 1, $2);
+        Node *node = createNode(&syntaxTree, "calculation");
+        addChildren(node, 1, $2);
+
+        char tmp[10];
+        sprintf(tmp, "R%d", quadCounter);  
+        insererQuadreplet(&quadList, "-", "0", ((Node *)$2)->name, tmp, quadCounter);
+        quadCounter++;
+
+        $$ = (void *)node;
     }
 ;
 
 expression
     : calculation {
         $$ = $1;
+        ((Node *)$$)->data.variableDefinition.type = ((Node *)$1)->data.variableDefinition.type;
+        ((Node *)$$)->data.variableDefinition.name =((Node *)$1)->data.variableDefinition.name;
     }
     | condition {
         $$ = $1;
@@ -792,6 +1098,10 @@ int main(int argc, char* argv[]) {
     initializeSyntaxTree(&syntaxTree);
     initializeSymbolsTableStack(&symbolsTableStack);
     pushScope(&symbolsTableStack); // push the global scope symbols table to the stack
+    // Initialize the quadruple list
+    stack = (pile *)malloc(sizeof(pile));
+    quadList = NULL;
+    quadCounter = 0;
 
     int result = yyparse();
 
@@ -803,6 +1113,9 @@ int main(int argc, char* argv[]) {
     printf(">>> Printing the symbols table of the global scope\n");
     printAllScopes(&symbolsTableStack);
     printf("\n");
+
+    printf("Generated Quadruples:\n");
+    afficherQuad(quadList);
 
     deleteSyntaxTree(&syntaxTree);
     deleteSymbolsTableStack(&symbolsTableStack);
