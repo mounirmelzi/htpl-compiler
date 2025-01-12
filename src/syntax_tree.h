@@ -14,6 +14,7 @@ typedef union Data
 typedef struct Node
 {
     char *name;
+    char* type; 
     Data data;
     struct Node *parent;
     struct Node **children;
