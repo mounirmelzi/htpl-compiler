@@ -603,9 +603,8 @@ optional_else
         sprintf(endAddressStr, "%d", quadCounter);  
         updateQuadreplet(quadList, bzAddress, endAddressStr);
 
-        //Push the BR instruction back onto the stack
-        empiler(stack, brAddress);
-
+        // supprimer l'instr BR
+        supprimerQuadruplet(&quadList, brAddress);
         $$ = NULL;  // No else block
     }
 ;

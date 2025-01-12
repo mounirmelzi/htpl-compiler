@@ -80,3 +80,25 @@ void afficherQuad(quad *q)
     }
     printf("___________________________________________________\n");
 }
+
+void supprimerQuadruplet(quad **q, int qc) {
+    quad *current = *q;
+    quad *prev = NULL;
+
+    // Traverse the list to find the quadruplet with the specified qc
+    while (current != NULL && current->qc != qc) {
+        prev = current;
+        current = current->suivant;
+    }
+
+    // If the quadruplet is found
+    if (current != NULL) {
+        // If the quadruplet to be deleted is the head of the list
+        if (prev == NULL) {
+            *q = current->suivant;
+        } else {
+            prev->suivant = current->suivant;
+        }
+        free(current);
+    }
+}

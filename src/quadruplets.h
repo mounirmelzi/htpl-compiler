@@ -24,3 +24,4 @@ void afficherQuad(quad * q);
 
 void enregistrerQuad(quad * q);
 void ajouterQuadreplet(quad ** q,quad * nouveauQuadreplet,int num);
+void supprimerQuadruplet(quad **q, int qc);
